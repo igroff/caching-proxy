@@ -1,0 +1,15 @@
+#! /usr/bin/env ./node_modules/.bin/coffee
+# vim: ft=coffee
+util = require 'util'
+path = require 'path'
+process.env.DISABLE_LOGGING=true
+process.env.TARGET_CONFIG_PATH = process.env.TARGET_CONFIG_PATH || path.join(process.cwd(), 'difftest/etc/target_config.json')
+config = require '../../lib/config.coffee'
+
+console.log("#{JSON.stringify config.findMatchingTarget('/test/servername')}")
+console.log("#{JSON.stringify config.findMatchingTarget('/test/servername?ir=querystring')}")
+console.log("#{JSON.stringify config.findMatchingTarget('/test/servernames')}")
+console.log("#{JSON.stringify config.findMatchingTarget('/test/serverpants')}")
+console.log("#{JSON.stringify config.findMatchingTarget('/diagnostic')}")
+
+
