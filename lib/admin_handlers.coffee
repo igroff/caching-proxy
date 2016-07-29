@@ -2,14 +2,13 @@ log       = require 'simplog'
 config    = require './config.coffee'
 utils     = require './util'
 
-handleAdminRequest = (request, res) ->
-  trimmedUrl = request.url.replace(/^\/\/\/\//, '')
+handleAdminRequest = (requestInfo, res) ->
+  trimmedUrl = requestInfo.url.replace(/^\/\/\/\//, '')
   log.debug "handling non proxied request url #{trimmedUrl}"
   parts = trimmedUrl.split '/'
   command = parts.shift()
   url = "/#{parts.join('/')}"
-  requestInfo = utils.buildRequestInfoFor request, url
-  if request.method is "DELETE"
+  if requestInfo.method is "DELETE"
     return handleDeleteRequest(requestInfo, res)
   else if command is 'delete'
     return handleDeleteRequest(requestInfo, res)

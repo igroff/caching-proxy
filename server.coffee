@@ -62,7 +62,7 @@ server = http.createServer (request, res) ->
   # for access to the proxy server configuration itself, we prefix any requests
   # to the proxy server itself with ////
   if request.url.startsWith('////')
-    return admin.requestHandler(request, res)
+    return admin.requestHandler(requestInfo, res)
 
   if requestInfo.cacheKey
     getCachedResponse(request, res)
