@@ -57,6 +57,15 @@ handleNonProxiedRequest = (request, res) ->
   else
     res.end(JSON.stringify({status: 'ok'}))
 
+# this handles a request to delete a cache entry
+handleDeleteRequest = (request, res, requestInfo) ->
+  cache.deleteCacheEntry(requestInfo.cacheKey)
+  .then () ->
+    res.end(JSON.stringify(status: 'ok', message: 'cache entry removed'))
+  .catch (e) ->
+    log.error "error removing cache entry\n%s", e
+    res.end(JSON.stringify(status: 'error', message: e.message))
+
 # this method actually proxies through the request as configured, returning
 # a promise which is resolved when the response from the service is complete
 rebuildResponseCache = (requestInfo, request) ->
@@ -81,13 +90,15 @@ getCachedResponse = (request, res) ->
       .then( () -> cache.tryGetCachedResponse(requestInfo.cacheKey) )
 
 server = http.createServer (request, res) ->
+  requestInfo = utils.buildRequestInfoFor request
   # just to attempt to not conflict with legit proxy requests, but also allow
   # for access to the proxy server configuration itself, we prefix any requests
   # to the proxy server itself with ////
   if request.url.startsWith('////')
     return handleNonProxiedRequest(request, res)
+  if request.method is "DELETE"
+    return handleDeleteRequest(request, res, requestInfo)
 
-  requestInfo = utils.buildRequestInfoFor request
   getCachedResponse(request, res)
   .then (cachedResponse) ->
     now = new Date().getTime()
@@ -109,4 +120,5 @@ server = http.createServer (request, res) ->
 
 log.info "listening on port %s", config.listenPort
 log.info "configuration: %j", config
+log.debug "debug logging enabled"
 server.listen(config.listenPort)

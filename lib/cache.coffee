@@ -44,6 +44,11 @@ getCacheFilePath = (requestInfo) ->
     cacheFileTempPath = path.join(config.tempDir, "#{requestInfo.cacheKey}.#{uniqueIdentifier}")
   return [cacheFilePath, "#{cacheFilePath}.body", cacheFileTempPath, "#{cacheFileTempPath}.body"]
 
+deleteCacheEntry = (cacheKey) ->
+  [cacheFilePath] = getCacheFilePath cacheKey
+  log.debug "deleting cache file #{cacheFilePath}"
+  fs.unlinkAsync cacheFilePath
+
 cacheResponse = (cacheKey, response) ->
   [cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath] = getCacheFilePath cacheKey
   log.debug "caching response metadata to #{cacheFilePath}, and body to #{cacheBodyFilePath}"
@@ -80,3 +85,4 @@ module.exports.tryGetCachedResponse = tryGetCachedResponse
 module.exports.cacheResponse = cacheResponse
 module.exports.getCacheLock = getCacheLock
 module.exports.releaseCacheLock = releaseCacheLock
+module.exports.deleteCacheEntry = deleteCacheEntry
