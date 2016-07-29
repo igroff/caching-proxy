@@ -7,7 +7,6 @@ handleAdminRequest = (requestInfo, res) ->
   log.debug "handling non proxied request url #{trimmedUrl}"
   parts = trimmedUrl.split '/'
   command = parts.shift()
-  url = "/#{parts.join('/')}"
   if requestInfo.method is "DELETE"
     return handleDeleteRequest(requestInfo, res)
   else if command is 'delete'
