@@ -1,6 +1,7 @@
-fs  = require 'fs'
-log = require 'simplog'
-_   = require 'lodash'
+Promise = require 'bluebird'
+fs      = Promise.promisifyAll(require('fs'))
+log     = require 'simplog'
+_       = require 'lodash'
 
 config =
   listenPort: process.env.PORT || 8080
@@ -31,5 +32,10 @@ config.findMatchingTarget = (url) ->
   matchedTarget =  _.find(config.targets, (target) -> target.regexp.test(url))
   log.debug "target #{matchedTarget.route} matched url: #{url}"
   return matchedTarget
+
+config.saveTargetConfig = () ->
+  targetConfig = _.cloneDeep config.targets
+  _.each targetConfig, (target) -> delete(target['regexp'])
+  fs.writeFileAsync(config.targetConfigPath, JSON.stringify(targetConfig, null, 2), {flag: 'w+'})
 
 module.exports = config
