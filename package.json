@@ -14,7 +14,7 @@
     "http-proxy": "1.14.0",
     "lodash": "4.14.0",
     "node-mocks-http": "1.5.2",
-    "simplog": "0.2.0",
+    "simplog": "0.2.1",
     "supervisor": "0.11.0"
   }
 }

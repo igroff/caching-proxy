@@ -2,8 +2,9 @@ SHELL=/bin/bash
 .PHONY: watch lint clean install
 
 APP_NAME?=$(shell basename `pwd`)
+	
 watch:
-	DEBUG=true ./node_modules/.bin/supervisor --watch 'src/,./' --ignore "./test"  -e "litcoffee,coffee,js" --exec make run-server
+	DEBUG=$${DEBUG-true} ./node_modules/.bin/supervisor --watch 'src/,./' --ignore "./test"  -e "litcoffee,coffee,js" --exec make run-server
 
 lint:
 	find ./src -name '*.coffee' | xargs ./node_modules/.bin/coffeelint -f ./etc/coffeelint.conf
