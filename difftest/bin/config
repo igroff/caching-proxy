@@ -4,6 +4,7 @@ util = require 'util'
 path = require 'path'
 process.env.DISABLE_LOGGING=true
 process.env.TARGET_CONFIG_PATH = process.env.TARGET_CONFIG_PATH || path.join(process.cwd(), 'difftest/etc/target_config.json')
+process.env.DEFAULT_TARGET= "http://default.target.com"
 config = require '../../lib/config.coffee'
 
 console.log("#{JSON.stringify config.findMatchingTarget('/test/servername')}")
