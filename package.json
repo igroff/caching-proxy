@@ -18,5 +18,8 @@
     "node-mocks-http": "1.5.2",
     "simplog": "0.2.1",
     "supervisor": "0.11.0"
+  },
+  "engines": {
+    "node": "5.5.0"
   }
 }
