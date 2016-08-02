@@ -3,10 +3,10 @@ SHELL=/bin/bash
 
 APP_NAME?=$(shell basename `pwd`)
 	
-watch:
+watch: install
 	DEBUG=$${DEBUG-true} ./node_modules/.bin/supervisor --watch 'src/,./' --ignore "./test"  -e "litcoffee,coffee,js" --exec make run-server
 
-test-server:
+test-server: install
 	DEBUG=$${DEBUG-true} TARGET_CONFIG_PATH=./difftest/etc/target_config.json ./node_modules/.bin/supervisor --watch 'src/,./' --ignore "./test"  -e "litcoffee,coffee,js" --exec make run-server
 
 lint:
