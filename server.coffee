@@ -87,7 +87,10 @@ server = http.createServer (request, res) ->
   else
     # no cache key means we'll just be proxying 
     log.debug "proxy only request for #{requestInfo.url}"
-    proxy.web(request, res, { target: requestInfo.config.target })
+    proxyError = (e) ->
+      log.error "error during proxy only request\n%s", e
+      res.end('{"status": "error", "message": "' + e.message + '"}')
+    proxy.web(request, res, { target: requestInfo.config.target }, proxyError)
 
 log.info "listening on port %s", config.listenPort
 log.info "configuration: %j", config
