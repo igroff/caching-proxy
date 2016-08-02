@@ -13,7 +13,7 @@ utils     = require './lib/util'
 admin     = require './lib/admin_handlers.coffee'
  
 proxy = httpProxy.createProxyServer({})
-#
+
 # this event is raised when we get a response from the proxied service
 # it is here that we will cache responses
 proxy.on 'proxyRes', (proxyRes, request, res) ->
@@ -28,6 +28,7 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
 
 # this method actually proxies through the request as configured, returning
 # a promise which is resolved when the response from the service is complete
+# or an error is encountered
 rebuildResponseCache = (requestInfo, request) ->
   completeProxyRequest = new Promise (resolve, reject) ->
     fauxProxyResponse = mocks.createResponse()
