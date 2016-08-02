@@ -2,11 +2,13 @@ log       = require 'simplog'
 config    = require './config.coffee'
 utils     = require './util'
 
-handleAdminRequest = (requestInfo, res) ->
-  trimmedUrl = requestInfo.url.replace(/^\/\/\/\//, '')
+handleAdminRequest = (request, res) ->
+  trimmedUrl = request.url.replace(/^\/\/\/\//, '')
   log.debug "handling non proxied request url #{trimmedUrl}"
   parts = trimmedUrl.split '/'
   command = parts.shift()
+  trimmedUrl = parts.join('/')
+  requestInfo = utils.buildRequestInfoFor(request, trimmedUrl)
   if requestInfo.method is "DELETE"
     return handleDeleteRequest(requestInfo, res)
   else if command is 'delete'
@@ -15,6 +17,10 @@ handleAdminRequest = (requestInfo, res) ->
     # just handing back the current config for whatever reason the caller
     # may have need of seeing it
     res.end(JSON.stringify({status: 'ok', config: config}))
+  else if command is "target"
+    # return the target config that matches the request
+    targetConfig = config.findMatchingTarget(requestInfo.url)
+    res.end(JSON.stringify(targetConfig))
   else if command is 'saveTargetConfig'
     handleConfigSaveRequest(requestInfo, res)
   else
