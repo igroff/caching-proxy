@@ -13,9 +13,9 @@ responseCachedCallbacks = {}
 tryGetCachedResponse = (cacheKey) ->
   log.debug "tryGetCachedResponse(#{cacheKey})"
   [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
-  fs.statAsync(cacheBodyFilePath)
+  fs.statAsync(cacheFilePath)
   .then () ->
-    fs.statAsync(cacheFilePath)
+    fs.statAsync(cacheBodyFilePath)
   .then (stats) ->
     log.debug "cacheFilePath #{cacheFilePath}"
     log.debug "cacheBodyFilePath #{cacheBodyFilePath}"
@@ -99,6 +99,7 @@ releaseCacheLock = (cacheKey) ->
   lockDescriptor = lockMap[cacheKey]
   if lockDescriptor
     lock.releaseLock lockDescriptor
+    delete(lockMap[cacheKey])
   else
     log.debug "requested release of key lock #{cacheKey} when it wasn't locked" unless lockDescriptor
 

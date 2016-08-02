@@ -22,6 +22,8 @@ handleAdminRequest = (request, res) ->
     # regexp is purely for our own internal matching, no need to return it
     delete(requestInfo.config['regexp'])
     res.end(jdumps(requestInfo.config))
+  else if command is "diagnostic"
+    res.end(jdumps(status: 'ok', message: 'ok'))
   else if command is 'saveTargetConfig'
     handleConfigSaveRequest(requestInfo, res)
   else

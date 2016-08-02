@@ -75,10 +75,11 @@ server = http.createServer (request, res) ->
       # queue up a rebuild request BUT still serve the cached response
       log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{requestInfo.config.maxAgeInMilliseconds}"
       if now - cachedResponse.createTime > requestInfo.config.maxAgeInMilliseconds
-        log.debug "triggering rebuild of cache for #{JSON.stringify requestInfo}"
         # only trigger the rebuild if we can get the cache lock, if we cannot get it
         # someone else is rebuilding this already
-        rebuildResponseCache(requestInfo, request) if cache.getCacheLock requestInfo.cacheKey
+        if cache.getCacheLock requestInfo.cacheKey
+          log.debug "triggering rebuild of cache for #{JSON.stringify requestInfo}"
+          rebuildResponseCache(requestInfo, request)
       cachedResponse.headers['x-cached-by-route'] = requestInfo.config.route
       cachedResponse.headers['x-cache-key'] = requestInfo.cacheKey
       cachedResponse.headers['x-cache-created'] = cachedResponse.createTime

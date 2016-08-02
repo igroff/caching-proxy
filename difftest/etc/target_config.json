@@ -32,6 +32,6 @@
   {
     "route": "*",
     "target": "http://localhost:8000",
-    "maxAgeInMilliseconds": 5000
+    "maxAgeInMilliseconds": 1000
   }
 ]
