@@ -1,1 +1,2 @@
-ERROR
+#! /usr/bin/env bash
+curl -sv 'http://localhost:8080/howdy.html' 2>&1 | grep x-cache-key
