@@ -20,7 +20,6 @@ handleAdminRequest = (request, res) ->
     res.end(jdumps({status: 'ok', config: config}))
   else if command is "target"
     # regexp is purely for our own internal matching, no need to return it
-    delete(requestInfo.config['regexp'])
     res.end(jdumps(requestInfo.config))
   else if command is "diagnostic"
     res.end(jdumps(status: 'ok', message: 'ok'))
