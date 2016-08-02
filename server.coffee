@@ -81,12 +81,14 @@ server = http.createServer (request, res) ->
       log.error "failed to handle request #{JSON.stringify(requestInfo)}"
       log.error e
       res.writeHead 500, {}
-      res.end('{"status": "error", "message": "internal proxy error"}')
+      res.end('{"status": "error", "message": "' + e.message + '"}')
   else
     # no cache key means we'll just be proxying 
     log.debug "proxy only request for #{requestInfo.url}"
     proxyError = (e) ->
-      log.error "error during proxy only request\n%s", e
+      log.error "error during proxy only request #{JSON.stringify(requestInfo)}"
+      log.error e
+      res.writeHead 500, {}
       res.end('{"status": "error", "message": "' + e.message + '"}')
     proxy.web(request, res, { target: requestInfo.config.target }, proxyError)
 
