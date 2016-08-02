@@ -45,4 +45,11 @@ handleDeleteRequest = (requestInfo, res) ->
     log.error "error removing cache entry\n%s", e
     res.end(JSON.stringify(status: 'error', message: e.message))
 
+# just to attempt to not conflict with legit proxy requests, but also allow
+# for access to the proxy server configuration itself, we prefix any requests
+# to the proxy server itself with ////
+isAdminRequest = (request) ->
+  return request.url.startsWith('////')
+
+module.exports.isAdminRequest = isAdminRequest
 module.exports.requestHandler = handleAdminRequest

@@ -56,14 +56,11 @@ getCachedResponse = (request, res) ->
       .then( () -> cache.tryGetCachedResponse(requestInfo.cacheKey) )
 
 server = http.createServer (request, res) ->
+  # handle admin requests as needed
+  return admin.requestHandler(request, res) if admin.isAdminRequest(request)
   requestInfo = utils.buildRequestInfoFor request
-  # just to attempt to not conflict with legit proxy requests, but also allow
-  # for access to the proxy server configuration itself, we prefix any requests
-  # to the proxy server itself with ////
-  if request.url.startsWith('////')
-    return admin.requestHandler(request, res)
-
   if requestInfo.cacheKey
+    # if we have a cache key, then we're are handling a cacheable request
     getCachedResponse(request, res)
     .then (cachedResponse) ->
       now = new Date().getTime()
