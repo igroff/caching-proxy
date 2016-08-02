@@ -30,7 +30,7 @@ config.targets.forEach(targetRegexBuilder)
 
 config.findMatchingTarget = (url) ->
   # find the config that matches this request
-  matchedTarget =  _.find(config.targets, (target) -> target.regexp.test(url))
+  matchedTarget =  _.clone(_.find(config.targets, (target) -> target.regexp.test(url)))
   # if there is no matching target, then we'll create a cacheless target for the
   # default target, this means that the default behavior of the proxy is to
   # proxy to the default target with no caching
