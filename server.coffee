@@ -32,12 +32,17 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
 rebuildResponseCache = (requestInfo, request) ->
   completeProxyRequest = new Promise (resolve, reject) ->
     fauxProxyResponse = mocks.createResponse()
-    fauxProxyResponse.end = resolve
     handleProxyError = (e) ->
       if requestInfo.cacheKey
         cache.releaseCacheLock(requestInfo.cacheKey)
       log.error "error proxying cache rebuild request to #{requestInfo.config.target}\n%s", e
       reject(e)
+    responseCachedHandler = (e) ->
+      if e
+        reject(e)
+      else
+        resolve()
+    cache.runWhenResponseIsCached(requestInfo.cacheKey, responseCachedHandler)
     proxy.web(request, fauxProxyResponse, { target: requestInfo.config.target }, handleProxyError)
 
 # retrieves a response for a given request, in this case it either fetches one from the

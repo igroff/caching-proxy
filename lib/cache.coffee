@@ -1,12 +1,14 @@
-Promise = require 'bluebird'
-fs      = Promise.promisifyAll(require('fs'))
-path    = require 'path'
-log     = require 'simplog'
-lock    = require './file_lock.coffee'
+Promise       = require 'bluebird'
+fs            = Promise.promisifyAll(require('fs'))
+path          = require 'path'
+log           = require 'simplog'
+lock          = require './file_lock.coffee'
+EventEmitter  = require 'events'
 
 config  = require './config.coffee'
 lockMap = {}
 tempCounter = 0
+responseCachedCallbacks = {}
 
 tryGetCachedResponse = (cacheKey) ->
   log.debug "tryGetCachedResponse(#{cacheKey})"
@@ -66,7 +68,20 @@ cacheResponse = (cacheKey, response) ->
       fs.renameAsync(cacheFileTempPath, cacheFilePath)
       .then(() -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath))
       .then( resolve )
-      .catch( reject )
+      .then( () -> invokeCallbackForCachedResponse(cacheKey) )
+      .catch( (e) ->
+        reject(e)
+        invokeCallbackForCachedResponse(cacheKey, e)
+      )
+
+runWhenResponseIsCached = (cacheKey, callback) ->
+  responseCachedCallbacks[cacheKey] = callback
+
+invokeCallbackForCachedResponse = (cacheKey, e=null) ->
+  callback = responseCachedCallbacks[cacheKey]
+  if callback
+    callback(e)
+    delete(responseCachedCallbacks[cacheKey])
 
 getCacheLock = (cacheKey) ->
   lockPath = path.join(config.lockDir, "#{cacheKey}.lock")
@@ -86,3 +101,4 @@ module.exports.cacheResponse = cacheResponse
 module.exports.getCacheLock = getCacheLock
 module.exports.releaseCacheLock = releaseCacheLock
 module.exports.deleteCacheEntry = deleteCacheEntry
+module.exports.runWhenResponseIsCached = runWhenResponseIsCached
