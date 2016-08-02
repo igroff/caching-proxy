@@ -26,20 +26,18 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
     cache.cacheResponse(requestInfo.cacheKey, proxyRes)
     .then( -> cache.releaseCacheLock(requestInfo.cacheKey))
 
-# any errors performing the proxied request will raise this event
-proxy.on 'error', (e, request, res) ->
-  requestInfo = utils.buildRequestInfoFor request
-  if requestInfo.cacheKey
-    cache.releaseCacheLock(requestInfo.cacheKey)
-  log.error "error proxying request to #{requestInfo.config.target}"
-
 # this method actually proxies through the request as configured, returning
 # a promise which is resolved when the response from the service is complete
 rebuildResponseCache = (requestInfo, request) ->
   completeProxyRequest = new Promise (resolve, reject) ->
     fauxProxyResponse = mocks.createResponse()
     fauxProxyResponse.end = resolve
-    proxy.web(request, fauxProxyResponse, { target: requestInfo.config.target }, reject)
+    handleProxyError = (e) ->
+      if requestInfo.cacheKey
+        cache.releaseCacheLock(requestInfo.cacheKey)
+      log.error "error proxying cache rebuild request to #{requestInfo.config.target}\n%s", e
+      reject(e)
+    proxy.web(request, fauxProxyResponse, { target: requestInfo.config.target }, handleProxyError)
 
 # retrieves a response for a given request, in this case it either fetches one from the
 # cache or reubuilds the cache and then returns what has been cached
