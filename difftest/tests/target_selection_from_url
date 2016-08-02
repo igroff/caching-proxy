@@ -1,3 +1,2 @@
 #! /usr/bin/env bash
-# want our output sans any log messages
 ./difftest/bin/config
