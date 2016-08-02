@@ -1,1 +1,3 @@
-ERROR
+#! /usr/bin/env bash
+# we expect to get an internal server error, NO x-cache-key, along with a JSONy thing that contains "status": "error"
+curl -s -v http://localhost:8080/error/invalid_cert 2>&1 | egrep 'Internal Server Error|x-cache-key|"status": "error"'
