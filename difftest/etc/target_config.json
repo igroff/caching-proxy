@@ -10,11 +10,6 @@
     "maxAgeInMilliseconds": 5000
   },
   {
-    "route": "*",
-    "target": "http://services-internal.pants.com/epiquery",
-    "maxAgeInMilliseconds": 5000
-  },
-  {
     "route": "/error/invalid_cert",
     "target": "https://www.google.com/",
     "maxAgeInMilliseconds": 5000
@@ -28,5 +23,10 @@
     "route": "/error/invalid_dns_name",
     "target": "http://this.is.an.invalid.dns.name.fauxr.us/echo",
     "maxAgeInMilliseconds": 0
+  },
+  {
+    "route": "*",
+    "target": "http://services-internal.pants.com/epiquery",
+    "maxAgeInMilliseconds": 5000
   }
 ]
