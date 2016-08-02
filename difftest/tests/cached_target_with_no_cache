@@ -1,1 +1,3 @@
-ERROR
+#! /usr/bin/env bash
+# make sure the cache is deleted, then rquest and see that we get a cached response
+curl -s http://localhost:8080////delete/howdy.html ; curl -sv http://localhost:8080/howdy.html 2>&1 | egrep '200 OK|x-cache-key'

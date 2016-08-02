@@ -1,6 +1,7 @@
 log       = require 'simplog'
 config    = require './config.coffee'
 utils     = require './util'
+cache     = require './cache.coffee'
 
 jdumps    = JSON.stringify
 
@@ -11,9 +12,7 @@ handleAdminRequest = (request, res) ->
   trimmedUrl = "/#{parts.join('/')}"
   log.debug "handling admin request url #{trimmedUrl}, command: #{command}, working url: #{trimmedUrl}"
   requestInfo = utils.buildRequestInfoFor(request, trimmedUrl)
-  if requestInfo.method is "DELETE"
-    return handleDeleteRequest(requestInfo, res)
-  else if command is 'delete'
+  if command is 'delete'
     return handleDeleteRequest(requestInfo, res)
   else if command is "config"
     # just handing back the current config for whatever reason the caller

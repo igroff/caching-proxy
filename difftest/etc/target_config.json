@@ -25,6 +25,11 @@
     "maxAgeInMilliseconds": 0
   },
   {
+    "route": "/no_proxy.html",
+    "target": "http://localhost:8000",
+    "maxAgeInMilliseconds": 0
+  },
+  {
     "route": "*",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 5000

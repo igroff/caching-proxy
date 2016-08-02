@@ -1,1 +1,3 @@
-ERROR
+#! /usr/bin/env bash
+# our response should contain the content we're looking for and NO x-cache-key header 
+curl -sv 'http://localhost:8080/no_proxy.html' 2>&1 | egrep 'x-cache-key|do not proxy'

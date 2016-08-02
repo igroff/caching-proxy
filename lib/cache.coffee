@@ -49,7 +49,13 @@ getCacheFilePath = (requestInfo) ->
 deleteCacheEntry = (cacheKey) ->
   [cacheFilePath] = getCacheFilePath cacheKey
   log.debug "deleting cache file #{cacheFilePath}"
-  fs.unlinkAsync cacheFilePath
+  fs.unlinkAsync(cacheFilePath)
+  .catch( (e) ->
+    # it's cool if we get asked to delete a chache entry that isn't there but if we get
+    # anything else, we want it to bubble up
+    if e.message.indexOf("ENOENT") is -1
+      throw e
+  )
 
 cacheResponse = (cacheKey, response) ->
   [cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath] = getCacheFilePath cacheKey

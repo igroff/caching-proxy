@@ -15,7 +15,9 @@ admin     = require './lib/admin_handlers.coffee'
 proxy = httpProxy.createProxyServer({})
 
 # this event is raised when we get a response from the proxied service
-# it is here that we will cache responses
+# it is here that we will cache responses, while it'd be awesome to do this
+# another way this is currently the only way to get the response from
+# http-proxy
 proxy.on 'proxyRes', (proxyRes, request, res) ->
   requestInfo = utils.buildRequestInfoFor request
   log.debug "handling proxied response from #{requestInfo.config.target}"

@@ -1,1 +1,3 @@
-ERROR
+#! /usr/bin/env bash
+# we should get an error with no indication of the response having been cached
+curl -s -v http://localhost:8080/error/invalid_dns_name 2>&1 | egrep 'Internal Server Error|x-cache-key|"status": "error"'
