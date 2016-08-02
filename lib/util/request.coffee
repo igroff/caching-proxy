@@ -16,7 +16,21 @@ buildRequestInfoFor = (req, url=undefined) ->
     queryString: req.url.split('?')[1]
     method: req.method
     headers: req.headers
-  requestInfo.config = config.findMatchingTarget(requestInfo.url)
+  # it's prossible to specify a proxy target in the request, this is intended to 
+  # be used for testing configuration changes prior to setting them 'in stone' via
+  # the config file, if the header is not present or an error is encountered while
+  # parsing it, we'll go ahead an pick as normal
+  if requestInfo.headers['x-proxy-target-config']
+    try
+      requestInfo.config = JSON.parse(requestInfo.headers['x-proxy-target-config'])
+    catch e
+      log.error "error processing proxy target from request header"
+      log.error e
+
+  # if we still don't have a target config, we'll find one as normal
+  if not requestInfo.config
+    requestInfo.config = config.findMatchingTarget(requestInfo.url)
+
   # if we have no max age for the cache, then there will be no caching 
   # for this request, thus no need for a cache key
   if requestInfo.config.maxAgeInMilliseconds > 0
