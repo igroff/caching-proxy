@@ -1,10 +1,13 @@
 SHELL=/bin/bash
-.PHONY: watch lint clean install
+.PHONY: watch lint clean install test-server
 
 APP_NAME?=$(shell basename `pwd`)
 	
 watch:
 	DEBUG=$${DEBUG-true} ./node_modules/.bin/supervisor --watch 'src/,./' --ignore "./test"  -e "litcoffee,coffee,js" --exec make run-server
+
+test-server:
+	DEBUG=$${DEBUG-true} TARGET_CONFIG_PATH=./difftest/etc/target_config.json ./node_modules/.bin/supervisor --watch 'src/,./' --ignore "./test"  -e "litcoffee,coffee,js" --exec make run-server
 
 lint:
 	find ./src -name '*.coffee' | xargs ./node_modules/.bin/coffeelint -f ./etc/coffeelint.conf
