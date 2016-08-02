@@ -26,7 +26,7 @@
   },
   {
     "route": "*",
-    "target": "http://services-internal.pants.com/epiquery",
+    "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 5000
   }
 ]
