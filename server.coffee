@@ -78,6 +78,8 @@ server = http.createServer (request, res) ->
         # someone else is rebuilding this already
         rebuildResponseCache(requestInfo, request) if cache.getCacheLock requestInfo.cacheKey
       cachedResponse.headers['x-cached-by-route'] = requestInfo.config.route
+      cachedResponse.headers['x-cache-key'] = requestInfo.cacheKey
+      cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
       res.writeHead cachedResponse.statusCode, cachedResponse.headers
       cachedResponse.body.pipe(res)
     .catch (e) ->
