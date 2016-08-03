@@ -44,10 +44,23 @@ handleDeleteRequest = (requestInfo, res) ->
     log.error "error removing cache entry\n%s", e
     res.end(jdumps(status: 'error', message: e.message))
 
-# just to attempt to not conflict with legit proxy requests, but also allow
-# for access to the proxy server configuration itself, we prefix any requests
-# to the proxy server itself with ////
+# because we want to allow requests to go to the proxy it's self we need a way to allow 
+# requests that target the proxy to be identified, these so called 'admin' requests
+# will be prefixed with an unreasonable number of forward slashes '/' to lessen the liklihood
+# of a conflict with legitemate proxied requests.
+#
+# Because of the way the proxy code works with both callbacks and global ( response ) events being
+# part of the process of handling a proxied request, some of our state is most easily passed around
+# via decorating request, as such we will add proprties to the request indicating that the inbound
+# request is an admin request, and then we'll remove the admin 'stuff' from the request url so that
+# the normal request info can be processed.  This is because admin requests to do things like delete
+# cache entries come in as prefix data on the url, for example
+# http://proxy_server_host////delete/this/item.html
+# is a request to the proxy server ( an admin request ) for it to delete the cached item /this/item.html
+# so the portion /this/item.html is a 'legitimate' url, and the ////delete is just decoration to 
+# indicate that the request is an 'admin' request, and that deletion is the desired action
 decorateAdminRequest = (request) ->
+  # admin requests will start with ////
   return unless request.url.startsWith('////')
   request.__isAdminRequest = true
   trimmedUrl = request.url.replace(/^\/\/\/\//, '')

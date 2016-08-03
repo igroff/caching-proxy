@@ -19,6 +19,7 @@ proxy = httpProxy.createProxyServer({})
 # another way this is currently the only way to get the response from
 # http-proxy
 proxy.on 'proxyRes', (proxyRes, request, res) ->
+  log.debug "proxy response received: #{request.__cacheKey}"
   # a configuration may specify that the response be cached, or simply proxied.
   # In the case of caching being desired a cacheKey will be present otherwise
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
@@ -43,7 +44,7 @@ rebuildResponseCache = (requestInfo) ->
       else
         resolve()
     cache.runWhenResponseIsCached(requestInfo.cacheKey, responseCachedHandler)
-    proxy.web(requestInfo.request, fauxProxyResponse, { target: requestInfo.config.target }, handleProxyError)
+    proxy.web(requestInfo, fauxProxyResponse, { target: requestInfo.config.target }, handleProxyError)
 
 # retrieves a response for a given request, in this case it either fetches one from the
 # cache or reubuilds the cache and then returns what has been cached
@@ -89,7 +90,7 @@ server = http.createServer (request, res) ->
         cachedResponse.body.pipe(res)
       .catch (e) ->
         log.error "failed to handle request #{requestInfo}"
-        log.error e
+        log.error e.stack
         res.writeHead 500, {}
         res.end('{"status": "error", "message": "' + e.message + '"}')
     else
@@ -97,7 +98,7 @@ server = http.createServer (request, res) ->
       log.debug "proxy only request for #{requestInfo.url}"
       proxyError = (e) ->
         log.error "error during proxy only request #{requestInfo}"
-        log.error e
+        log.error e.stack
         res.writeHead 500, {}
         res.end('{"status": "error", "message": "' + e.message + '"}')
       proxy.web(request, res, { target: requestInfo.config.target }, proxyError)
