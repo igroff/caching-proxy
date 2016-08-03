@@ -1,0 +1,21 @@
+{
+  "body": "something=pants",
+  "requestHeaders": {
+    "content-length": "15",
+    "x-forwarded-host": "localhost",
+    "x-forwarded-for": "10.60.215.164",
+    "host": "localhost:8080",
+    "x-starphleet-service-name": ": monitor",
+    "user-agent": "curl",
+    "connection": "upgrade",
+    "accept": "*/*",
+    "pants2": "are more awesome",
+    "x-forwarded-server": "localhost",
+    "content-type": "application/x-www-form-urlencoded",
+    "pants": "set by starphleet"
+  },
+  "uri": "/include/body",
+  "clientAddress": "10.0.3.1",
+  "method": "POST",
+  "httpVersion": "HTTP/1.1"
+}

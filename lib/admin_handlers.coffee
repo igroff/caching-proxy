@@ -5,13 +5,10 @@ cache     = require './cache.coffee'
 
 jdumps    = JSON.stringify
 
-handleAdminRequest = (request, res) ->
-  trimmedUrl = request.url.replace(/^\/\/\/\//, '')
-  parts = trimmedUrl.split '/'
-  command = parts.shift()
-  trimmedUrl = "/#{parts.join('/')}"
-  log.debug "handling admin request url #{trimmedUrl}, command: #{command}, working url: #{trimmedUrl}"
-  requestInfo = utils.buildRequestInfoFor(request, trimmedUrl)
+handleAdminRequest = (requestInfo, res) ->
+  return unless requestInfo.request.__isAdminRequest
+  command = requestInfo.request.__adminCommand
+  log.debug "handling admin request url #{requestInfo.request.url}, command: #{command}"
   if command is 'delete'
     return handleDeleteRequest(requestInfo, res)
   else if command is "config"
@@ -50,8 +47,14 @@ handleDeleteRequest = (requestInfo, res) ->
 # just to attempt to not conflict with legit proxy requests, but also allow
 # for access to the proxy server configuration itself, we prefix any requests
 # to the proxy server itself with ////
-isAdminRequest = (request) ->
-  return request.url.startsWith('////')
+decorateAdminRequest = (request) ->
+  return unless request.url.startsWith('////')
+  request.__isAdminRequest = true
+  trimmedUrl = request.url.replace(/^\/\/\/\//, '')
+  parts = trimmedUrl.split '/'
+  request.__adminCommand = parts.shift()
+  request.url = "/#{parts.join('/')}"
 
-module.exports.isAdminRequest = isAdminRequest
+module.exports.isAdminRequest = (request) -> request.__isAdminRequest
 module.exports.requestHandler = handleAdminRequest
+module.exports.decorateAdminRequest = decorateAdminRequest

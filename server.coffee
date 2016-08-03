@@ -19,19 +19,17 @@ proxy = httpProxy.createProxyServer({})
 # another way this is currently the only way to get the response from
 # http-proxy
 proxy.on 'proxyRes', (proxyRes, request, res) ->
-  requestInfo = utils.buildRequestInfoFor request
-  log.debug "handling proxied response from #{requestInfo.config.target}"
   # a configuration may specify that the response be cached, or simply proxied.
   # In the case of caching being desired a cacheKey will be present otherwise
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
-  if requestInfo.cacheKey
-    cache.cacheResponse(requestInfo.cacheKey, proxyRes)
-    .then( -> cache.releaseCacheLock(requestInfo.cacheKey))
+  if request.__cacheKey
+    cache.cacheResponse(request.__cacheKey, proxyRes)
+    .then( -> cache.releaseCacheLock(request.__cacheKey))
 
 # this method actually proxies through the request as configured, returning
 # a promise which is resolved when the response from the service is complete
 # or an error is encountered
-rebuildResponseCache = (requestInfo, request) ->
+rebuildResponseCache = (requestInfo) ->
   completeProxyRequest = new Promise (resolve, reject) ->
     fauxProxyResponse = mocks.createResponse()
     handleProxyError = (e) ->
@@ -45,12 +43,11 @@ rebuildResponseCache = (requestInfo, request) ->
       else
         resolve()
     cache.runWhenResponseIsCached(requestInfo.cacheKey, responseCachedHandler)
-    proxy.web(request, fauxProxyResponse, { target: requestInfo.config.target }, handleProxyError)
+    proxy.web(requestInfo.request, fauxProxyResponse, { target: requestInfo.config.target }, handleProxyError)
 
 # retrieves a response for a given request, in this case it either fetches one from the
 # cache or reubuilds the cache and then returns what has been cached
-getCachedResponse = (request, res) ->
-  requestInfo = utils.buildRequestInfoFor request
+getCachedResponse = (requestInfo) ->
   # return a response from our cache or queue up a request
   # and wait for the response, then return it
   cache.tryGetCachedResponse(requestInfo.cacheKey)
@@ -59,46 +56,51 @@ getCachedResponse = (request, res) ->
       Promise.resolve(cachedResponse)
     else
       log.debug "proxying request to #{requestInfo.config.target}"
-      rebuildResponseCache(requestInfo, request)
+      rebuildResponseCache(requestInfo)
       .then( () -> cache.tryGetCachedResponse(requestInfo.cacheKey) )
 
+rebuildCacheAsNeeded = (requestInfo, cachedResponse) ->
+  now = new Date().getTime()
+  # if our cached response is older than is configured for the max age, then we'll
+  # queue up a rebuild request BUT still serve the cached response
+  log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{requestInfo.config.maxAgeInMilliseconds}"
+  if now - cachedResponse.createTime > requestInfo.config.maxAgeInMilliseconds
+    # only trigger the rebuild if we can get the cache lock, if we cannot get it
+    # someone else is rebuilding this already
+    if cache.getCacheLock requestInfo.cacheKey
+      log.debug "triggering rebuild of cache for #{requestInfo.cacheKey}"
+      rebuildResponseCache(requestInfo)
+  
 server = http.createServer (request, res) ->
-  # handle admin requests as needed
-  return admin.requestHandler(request, res) if admin.isAdminRequest(request)
-  requestInfo = utils.buildRequestInfoFor request
-  if requestInfo.cacheKey
-    # if we have a cache key, then we're are handling a cacheable request
-    getCachedResponse(request, res)
-    .then (cachedResponse) ->
-      now = new Date().getTime()
-      # if our cached response is older than is configured for the max age, then we'll
-      # queue up a rebuild request BUT still serve the cached response
-      log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{requestInfo.config.maxAgeInMilliseconds}"
-      if now - cachedResponse.createTime > requestInfo.config.maxAgeInMilliseconds
-        # only trigger the rebuild if we can get the cache lock, if we cannot get it
-        # someone else is rebuilding this already
-        if cache.getCacheLock requestInfo.cacheKey
-          log.debug "triggering rebuild of cache for #{JSON.stringify requestInfo}"
-          rebuildResponseCache(requestInfo, request)
-      cachedResponse.headers['x-cached-by-route'] = requestInfo.config.route
-      cachedResponse.headers['x-cache-key'] = requestInfo.cacheKey
-      cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
-      res.writeHead cachedResponse.statusCode, cachedResponse.headers
-      cachedResponse.body.pipe(res)
-    .catch (e) ->
-      log.error "failed to handle request #{JSON.stringify(requestInfo)}"
-      log.error e
-      res.writeHead 500, {}
-      res.end('{"status": "error", "message": "' + e.message + '"}')
-  else
-    # no cache key means we'll just be proxying 
-    log.debug "proxy only request for #{requestInfo.url}"
-    proxyError = (e) ->
-      log.error "error during proxy only request #{JSON.stringify(requestInfo)}"
-      log.error e
-      res.writeHead 500, {}
-      res.end('{"status": "error", "message": "' + e.message + '"}')
-    proxy.web(request, res, { target: requestInfo.config.target }, proxyError)
+  admin.decorateAdminRequest(request)
+  utils.buildRequestInfoFor(request)
+  .then (requestInfo) ->
+    if admin.isAdminRequest(requestInfo.request)
+      admin.requestHandler(requestInfo, res)
+    else if requestInfo.cacheKey
+      # if we have a cache key, then we're are handling a cacheable request
+      getCachedResponse(requestInfo)
+      .then (cachedResponse) ->
+        rebuildCacheAsNeeded(requestInfo, cachedResponse)
+        cachedResponse.headers['x-cached-by-route'] = requestInfo.config.route
+        cachedResponse.headers['x-cache-key'] = requestInfo.cacheKey
+        cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
+        res.writeHead cachedResponse.statusCode, cachedResponse.headers
+        cachedResponse.body.pipe(res)
+      .catch (e) ->
+        log.error "failed to handle request #{requestInfo}"
+        log.error e
+        res.writeHead 500, {}
+        res.end('{"status": "error", "message": "' + e.message + '"}')
+    else
+      # no cache key means we'll just be proxying 
+      log.debug "proxy only request for #{requestInfo.url}"
+      proxyError = (e) ->
+        log.error "error during proxy only request #{requestInfo}"
+        log.error e
+        res.writeHead 500, {}
+        res.end('{"status": "error", "message": "' + e.message + '"}')
+      proxy.web(request, res, { target: requestInfo.config.target }, proxyError)
 
 log.info "listening on port %s", config.listenPort
 log.info "configuration: %j", config
