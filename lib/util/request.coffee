@@ -29,26 +29,22 @@ class RequestInfo extends require('stream').Readable
 
 buildRequestInfoFor = (req) ->
   new Promise (resolve, reject) ->
-    # we're going to pick off the information that we require to do the
-    # proxying and caching that we provide as a service
     requestInfo = new RequestInfo(req)
-
+    # it's prossible to specify a proxy target in the request, this is intended to 
+    # be used for testing configuration changes prior to setting them 'in stone' via
+    # the config file, if the header is not present or an error is encountered while
+    # parsing it, we'll go ahead an pick as normal
+    if requestInfo.headers['x-proxy-target-config']
+      try
+        requestInfo.config = JSON.parse(requestInfo.headers['x-proxy-target-config'])
+      catch e
+        log.error "error processing proxy target from request header"
+        log.error e
+   
+    # if we still don't have a target config, we'll find one as normal
+    if not requestInfo.config
+      requestInfo.config = config.findMatchingTarget(requestInfo.url)
     processRequestInfo = (requestInfo) ->
-      # it's prossible to specify a proxy target in the request, this is intended to 
-      # be used for testing configuration changes prior to setting them 'in stone' via
-      # the config file, if the header is not present or an error is encountered while
-      # parsing it, we'll go ahead an pick as normal
-      if requestInfo.headers['x-proxy-target-config']
-        try
-          requestInfo.config = JSON.parse(requestInfo.headers['x-proxy-target-config'])
-        catch e
-          log.error "error processing proxy target from request header"
-          log.error e
-     
-      # if we still don't have a target config, we'll find one as normal
-      if not requestInfo.config
-        requestInfo.config = config.findMatchingTarget(requestInfo.url)
-
       # if we have no max age for the cache, then there will be no caching 
       # for this request, thus no need for a cache key
       if requestInfo.config.maxAgeInMilliseconds > 0
@@ -56,13 +52,16 @@ buildRequestInfoFor = (req) ->
         cacheKeyData = "#{requestInfo.method}-#{requestInfo.url}-#{requestInfo.body}"
         requestInfo.cacheKey = crypto.createHash('md5').update(cacheKeyData).digest("hex")
         requestInfo.__cacheKey = requestInfo.cacheKey
-    # gather all our request data as it becomes available, in practice we expect this 'data' event to
-    # only be raised once with the full content of the request
-    req.on 'data', (data) -> requestInfo.body += data
-    req.on 'end', () ->
-      processRequestInfo(requestInfo)
-      log.info "#{requestInfo}"
+    if requestInfo.config.maxAgeInMilliseconds < 1
       resolve(requestInfo)
-    req.on 'error', reject
+    else
+      # gather all our request data as it becomes available, in practice we expect this 'data' event to
+      # only be raised once with the full content of the request
+      req.on 'data', (data) -> requestInfo.body += data
+      req.on 'end', () ->
+        processRequestInfo(requestInfo)
+        log.info "#{requestInfo}"
+        resolve(requestInfo)
+      req.on 'error', reject
 
 module.exports.buildRequestInfoFor = buildRequestInfoFor
