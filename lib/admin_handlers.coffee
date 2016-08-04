@@ -4,44 +4,44 @@ cache     = require './cache.coffee'
 
 jdumps    = JSON.stringify
 
-handleAdminRequest = (requestInfo, res) ->
-  return unless requestInfo.request.__isAdminRequest
-  command = requestInfo.request.__adminCommand
-  log.debug "handling admin request url #{requestInfo.request.url}, command: #{command}"
+handleAdminRequest = (context) ->
+  command = context.adminCommand
+  response = context.response
+  log.debug "handling admin request url #{context.url}, command: #{command}"
   if command is 'delete'
-    return handleDeleteRequest(requestInfo, res)
+    return handleDeleteRequest(context.cacheKey, response)
   else if command is "config"
     # just handing back the current config for whatever reason the caller
     # may have need of seeing it
-    res.end(jdumps({status: 'ok', config: config}))
+    response.end(jdumps({status: 'ok', config: config}))
   else if command is "target"
     # regexp is purely for our own internal matching, no need to return it
-    res.end(jdumps(requestInfo.config))
+    response.end(jdumps(context.targetConfig))
   else if command is "diagnostic"
-    res.end(jdumps(status: 'ok', message: 'ok'))
+    response.end(jdumps(status: 'ok', message: 'ok'))
   else if command is 'saveTargetConfig'
-    handleConfigSaveRequest(requestInfo, res)
+    handleConfigSaveRequest(context.response)
   else
-    res.end(jdumps(status: 'error', message: 'unknown request'))
+    response.end(jdumps(status: 'error', message: 'unknown request'))
 
 # this handles a request to save our config, since it can be modified at runtime
 # we may want to ( or not want to ) persist any changes to disk so we allow the
 # user to decide by invoking this method
-handleConfigSaveRequest = (requestInfo, res) ->
+handleConfigSaveRequest = (response) ->
   config.saveTargetConfig()
   .then () -> res.end(jdumps(status: 'ok'))
   .catch (e) ->
     log.error "error saving target configuration data\n%s", e
-    res.end(jdumps(status: 'error', message: e.message))
+    response.end(jdumps(status: 'error', message: e.message))
 
 # this handles a request to delete a cache entry
-handleDeleteRequest = (requestInfo, res) ->
-  cache.deleteCacheEntry(requestInfo.cacheKey)
+handleDeleteRequest = (cacheKey, response) ->
+  cache.deleteCacheEntry(cacheKey)
   .then () ->
-    res.end(jdumps(status: 'ok', message: 'cache entry removed'))
+    response.end(jdumps(status: 'ok', message: 'cache entry removed'))
   .catch (e) ->
     log.error "error removing cache entry\n%s", e
-    res.end(jdumps(status: 'error', message: e.message))
+    response.end(jdumps(status: 'error', message: e.message))
 
 # because we want to allow requests to go to the proxy it's self we need a way to allow 
 # requests that target the proxy to be identified, these so called 'admin' requests
@@ -67,6 +67,5 @@ getAdminRequestInfo = (request) ->
   url = "/#{parts.join('/')}"
   return [command, url]
 
-module.exports.isAdminRequest = (request) -> request.__isAdminRequest
 module.exports.requestHandler = handleAdminRequest
 module.exports.getAdminRequestInfo = getAdminRequestInfo

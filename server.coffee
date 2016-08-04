@@ -20,13 +20,13 @@ proxy = httpProxy.createProxyServer({})
 # another way this is currently the only way to get the response from
 # http-proxy
 proxy.on 'proxyRes', (proxyRes, request, res) ->
-  log.debug "proxy response received: #{request.__cacheKey}"
+  log.debug "proxy response received for key: #{request.cacheKey}"
   # a configuration may specify that the response be cached, or simply proxied.
   # In the case of caching being desired a cacheKey will be present otherwise
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
-  if request.__cacheKey
-    cache.cacheResponse(request.__cacheKey, proxyRes)
-    .then( -> cache.releaseCacheLock(request.__cacheKey))
+  if request.cacheKey
+    cache.cacheResponse(request.cacheKey, proxyRes)
+    .then( -> cache.releaseCacheLock(request.cacheKey))
 
 class RequestHandlingComplete extends Error
   constructor: (@stepOrMessage="") ->
@@ -96,7 +96,17 @@ buildCacheKey = (context) ->
     # build a cache key
     cacheKeyData = "#{context.request.method}-#{context.url}-#{context.requestBody or ""}"
     context.cacheKey = crypto.createHash('md5').update(cacheKeyData).digest("hex")
+    log.debug "request cache key: #{context.cacheKey}"
     resolve(context)
+
+handleAdminRequest = (context) ->
+  new Promise (resolve, reject) ->
+    # no admin command means it's not an admin request
+    return resolve(context) if not context.adminCommand
+    log.debug "handleAdminRequest"
+    admin.requestHandler context
+    # admin 'stuff' is all handled in the admin handler so we're done here
+    reject new RequestHandlingComplete()
 
 getCachedResponse = (context) ->
   new Promise (resolve, reject) ->
@@ -109,32 +119,32 @@ getCachedResponse = (context) ->
       resolve(context)
     .catch reject
 
-getAndCacheResponse = (context) ->
+getAndCacheResponseIfNeeded = (context) ->
   new Promise (resolve, reject) ->
     # get and cache a response for the given request, if there is already 
     # a cached response there is nothing to do
     return resolve(context) if context.cachedResponse
-    log.debug "getAndCacheResponse"
-    reject new Error("need a cacheKey inorder to cache a response, none present")
-    new Promise (resolve, reject) ->
-      responseCachedHandler = (e) ->
-        if e
-          reject(e)
-        else
-          cache.tryGetCachedResponse(context.cacheKey)
-          .then (cachedResponse) ->
-            context.cachedResponse = cachedResponse
-            resolve(context)
-      cache.runWhenResponseIsCached(context.cacheKey, responseCachedHandler)
-      # only if we get the cache lock will we rebuild, otherwise someone else is
-      # already rebuilding the cache metching this request
-      if cache.getCacheLock context.cacheKey
-        fauxProxyResponse = mocks.createResponse()
-        handleProxyError = (e) ->
-          log.error "error proxying cache rebuild request to #{context.targetConfig}\n%s", e
-          cache.releaseCacheLock(context.cacheKey)
-          reject(e)
-        proxy.web(requestInfo, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
+    log.debug "getAndCacheResponseIfNeeded"
+    reject new Error("need a cacheKey inorder to cache a response, none present") if not context.cacheKey
+    responseCachedHandler = (e) ->
+      if e
+        reject(e)
+      else
+        cache.tryGetCachedResponse(context.cacheKey)
+        .then (cachedResponse) ->
+          context.cachedResponse = cachedResponse
+          resolve(context)
+        .catch (e) -> reject(e)
+    cache.runWhenResponseIsCached(context.cacheKey, responseCachedHandler)
+    # only if we get the cache lock will we rebuild, otherwise someone else is
+    # already rebuilding the cache metching this request
+    if cache.getCacheLock context.cacheKey
+      fauxProxyResponse = mocks.createResponse()
+      handleProxyError = (e) ->
+        log.error "error proxying cache rebuild request to #{context.targetConfig}\n%s", e
+        cache.releaseCacheLock(context.cacheKey)
+        reject(e)
+      proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
 
 # while this method does return a promise it doesn't actually wait for any of the results of its async
 # invocations. This method simply determines if a cache rebuild should be triggered, triggers it
@@ -182,14 +192,15 @@ server = http.createServer (request, response) ->
   .then handleProxyOnlyRequest
   .then readRequestBody
   .then buildCacheKey
+  .then handleAdminRequest
   .then getCachedResponse
-  .then getAndCacheResponse
+  .then getAndCacheResponseIfNeeded
   .then triggerRebuildOfExpiredCachedResponse
   .then serveCachedResponse
   .catch (e) ->
     return if e.requestHandlingComplete
     log.error "error processing request"
-    log.error e
+    log.error e.stack
     response.writeHead 500, {}
     response.end('{"status": "error", "message": "' + e.message + '"}')
 
