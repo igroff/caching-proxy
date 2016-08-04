@@ -7,7 +7,6 @@ log           = require 'simplog'
 crypto        = require 'crypto'
 mocks         = require 'node-mocks-http'
 
-lock          = require './lib/file_lock.coffee'
 config        = require './lib/config.coffee'
 cache         = require './lib/cache.coffee'
 admin         = require './lib/admin_handlers.coffee'
