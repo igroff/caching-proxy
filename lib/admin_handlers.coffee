@@ -1,6 +1,5 @@
 log       = require 'simplog'
 config    = require './config.coffee'
-utils     = require './util'
 cache     = require './cache.coffee'
 
 jdumps    = JSON.stringify

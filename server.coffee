@@ -10,7 +10,6 @@ mocks         = require 'node-mocks-http'
 lock          = require './lib/file_lock.coffee'
 config        = require './lib/config.coffee'
 cache         = require './lib/cache.coffee'
-utils         = require './lib/util'
 admin         = require './lib/admin_handlers.coffee'
 buildContext  = require './lib/context.coffee'
  
@@ -30,7 +29,9 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
     .then( -> cache.releaseCacheLock(request.__cacheKey))
 
 class RequestHandlingComplete extends Error
-  constructor: (@stepOrMessage) -> super()
+  constructor: (@stepOrMessage="") ->
+    @requestHandlingComplete = true
+    super()
 
 determineIfAdminRequest = (context) ->
   new Promise (resolve, reject) ->
@@ -186,8 +187,9 @@ server = http.createServer (request, response) ->
   .then triggerRebuildOfExpiredCachedResponse
   .then serveCachedResponse
   .catch (e) ->
+    return if e.requestHandlingComplete
     log.error "error processing request"
-    log.error e.stack
+    log.error e
     response.writeHead 500, {}
     response.end('{"status": "error", "message": "' + e.message + '"}')
 
