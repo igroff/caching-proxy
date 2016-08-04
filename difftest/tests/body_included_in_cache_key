@@ -1,5 +1,7 @@
 #! /usr/bin/env bash
 KEY_WITH_BODY=$(curl -vs http://localhost:8080/include/body --data 'something=pants' 2>&1 | grep 'x-cache-key')
+# we have to send the 'without body' version as a POST because that's what curl does when you send a body 
+# and method is part of our cache key
 KEY_WITHOUT_BODY=$(curl -vs -X POST http://localhost:8080/include/body 2>&1 | grep 'x-cache-key')
 
 echo with ${KEY_WITH_BODY}

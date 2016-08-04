@@ -1,0 +1,2 @@
+#! /usr/bin/env bash
+curl -s http://localhost:8080/include/body_proxy --data 'something=pants' | jq . | grep \"body\"
