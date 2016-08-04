@@ -59,15 +59,15 @@ handleDeleteRequest = (requestInfo, res) ->
 # is a request to the proxy server ( an admin request ) for it to delete the cached item /this/item.html
 # so the portion /this/item.html is a 'legitimate' url, and the ////delete is just decoration to 
 # indicate that the request is an 'admin' request, and that deletion is the desired action
-decorateAdminRequest = (request) ->
+getAdminRequestInfo = (request) ->
   # admin requests will start with ////
-  return unless request.url.startsWith('////')
-  request.__isAdminRequest = true
+  return null unless request.url.startsWith('////')
   trimmedUrl = request.url.replace(/^\/\/\/\//, '')
   parts = trimmedUrl.split '/'
-  request.__adminCommand = parts.shift()
-  request.url = "/#{parts.join('/')}"
+  command = parts.shift()
+  url = "/#{parts.join('/')}"
+  return [command, url]
 
 module.exports.isAdminRequest = (request) -> request.__isAdminRequest
 module.exports.requestHandler = handleAdminRequest
-module.exports.decorateAdminRequest = decorateAdminRequest
+module.exports.getAdminRequestInfo = getAdminRequestInfo
