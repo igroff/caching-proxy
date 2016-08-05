@@ -1,5 +1,6 @@
 #! /usr/bin/env node_modules/.bin/coffee
 Promise       = require 'bluebird'
+using         = Promise.using
 http          = require 'http'
 httpProxy     = require 'http-proxy'
 EventEmitter  = require 'events'
@@ -25,7 +26,7 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   if request.cacheKey
     cache.cacheResponse(request.cacheKey, proxyRes)
-    .then( -> cache.releaseCacheLock(request.cacheKey))
+    .then( -> request.proxiedResponseCached and request.proxiedResponseCached())
 
 class RequestHandlingComplete extends Error
   constructor: (@stepOrMessage="") ->
@@ -118,6 +119,16 @@ getCachedResponse = (context) ->
       resolve(context)
     .catch reject
 
+getCacheLockIfNoCachedResponseExists = (context) ->
+  new Promise (resolve, reject) ->
+    return resolve(context) if context.cachedResponse # we have a cached, response no need to lock anything
+    log.debug "getCacheLockIfNoCachedResponseExists"
+    cache.promiseToGetCacheLock(context.cacheKey)
+    .then (lockDescriptor) ->
+      context.cacheLockDescriptor = lockDescriptor
+      resolve(context)
+    .catch reject
+
 getAndCacheResponseIfNeeded = (context) ->
   new Promise (resolve, reject) ->
     # get and cache a response for the given request, if there is already 
@@ -137,37 +148,37 @@ getAndCacheResponseIfNeeded = (context) ->
     cache.runWhenResponseIsCached(context.cacheKey, responseCachedHandler)
     # only if we get the cache lock will we rebuild, otherwise someone else is
     # already rebuilding the cache metching this request
-    if cache.getCacheLock context.cacheKey
+    if context.cacheLockDescriptor
+      log.debug "we got cache lock #{context.cacheLockDescriptor} for #{context.cacheKey}, triggering rebuild"
       fauxProxyResponse = mocks.createResponse()
       handleProxyError = (e) ->
         log.error "error proxying cache rebuild request to #{context.targetConfig}\n%s", e
-        cache.releaseCacheLock(context.cacheKey)
         reject(e)
       proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
+    else
+      log.debug "didn't get the cache lock for #{context.cacheKey}, waiting for in progress rebuild"
 
-# while this method does return a promise it doesn't actually wait for any of the results of its async
-# invocations. This method simply determines if a cache rebuild should be triggered, triggers it
-# accordingly.
-triggerRebuildOfExpiredCachedResponse = (context) ->
+
+determineIfCacheIsExpired = (context) ->
   new Promise (resolve, reject) ->
-    return reject new Error("no cached response found, cannot trigger rebuild") unless context.cachedResponse
-    log.debug "triggerRebuildOfExpiredCachedResponse"
+    log.debug "determineIfCacheIsExpired"
     cachedResponse = context.cachedResponse
     now = new Date().getTime()
     # if our cached response is older than is configured for the max age, then we'll
     # queue up a rebuild request BUT still serve the cached response
     log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{context.targetConfig.maxAgeInMilliseconds}"
-    if now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
-      # only trigger the rebuild if we can get the cache lock, if we cannot get it
-      # someone else is rebuilding this already
-      if cache.getCacheLock context.cacheKey
-        log.debug "triggering rebuild of cache for #{context.cacheKey}"
-        fauxProxyResponse = mocks.createResponse()
-        handleProxyError = (e) ->
-          log.error "error proxying cache rebuild request to #{context.targetConfig.target}\n%s", e
-          cache.releaseCacheLock(context.cacheKey)
-        proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
+    context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
     resolve(context)
+
+getCacheLockIfCacheIsExpired = (context) ->
+  new Promise (resolve, reject) ->
+    return resolve(context) unless context.cachedResponseIsExpired # if it's not expired, we have nothing to do
+    log.debug "getCacheLockIfCacheIsExpired"
+    cache.promiseToGetCacheLock(context.cacheKey)
+    .then (lockDescriptor) ->
+      context.cacheLockDescriptor = lockDescriptor
+      resolve(context)
+    .catch reject
 
 serveCachedResponse = (context) ->
   new Promise (resolve, reject) ->
@@ -181,27 +192,70 @@ serveCachedResponse = (context) ->
     # just to follow the pattern we'll pass on the context although there's no one after us
     resolve(context)
 
+# while this method does return a promise it doesn't actually wait for any of the results of its async
+# invocations. This method simply determines if a cache rebuild should be triggered, triggers it
+# accordingly.
+triggerRebuildOfExpiredCachedResponse = (context) ->
+  new Promise (resolve, reject) ->
+    return reject new Error("no cached response found, cannot trigger rebuild") unless context.cachedResponse
+    log.debug "triggerRebuildOfExpiredCachedResponse"
+    cachedResponse = context.cachedResponse
+    if context.cachedResponseIsExpired and context.cacheLockDescriptor
+      log.debug "triggering rebuild of cache for #{context.cacheKey}"
+      fauxProxyResponse = mocks.createResponse()
+      handleProxyError = (e) ->
+        log.error "error proxying cache rebuild request to #{context.targetConfig.target}\n%s", e
+      context.proxiedResponseCached = () ->
+        log.debug "mother fucking done I tell you"
+        resolve(context)
+      return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
+    resolve(context)
+
+logAndPassContext = (message) ->
+  (context) ->
+    new Promise (resolve) ->
+      log.debug message
+      resolve(context)
+    
+
 server = http.createServer (request, response) ->
-  # the first step is to build a context object which will get
-  # passed to each subsequent step, if a given step receives no
-  # context object then there is nothing for it to do
-  buildContext(request, response)
-  .then determineIfAdminRequest
-  .then determineIfProxiedOnlyOrCached
-  .then handleProxyOnlyRequest
-  .then readRequestBody
-  .then buildCacheKey
-  .then handleAdminRequest
-  .then getCachedResponse
-  .then getAndCacheResponseIfNeeded
-  .then triggerRebuildOfExpiredCachedResponse
-  .then serveCachedResponse
-  .catch (e) ->
-    return if e.requestHandlingComplete
-    log.error "error processing request"
-    log.error e.stack
-    response.writeHead 500, {}
-    response.end('{"status": "error", "message": "' + e.message + '"}')
+  getContextThatUnlocksCacheOnDispose = () ->
+    buildContext(request, response).disposer (context, promise) ->
+      if context.cacheLockDescriptor
+        log.debug "unlocking cache lock #{context.cacheLockDescriptor} during context dispose"
+        cache.releaseCacheLock(context.cacheLockDescriptor) if context.cacheLockDescriptor
+      else
+        log.debug "cache not locked, no unlock needed during context dispose"
+
+  requestPipeline = (context) ->
+    Promise.resolve(context)
+    .then determineIfAdminRequest
+    .then determineIfProxiedOnlyOrCached
+    .then handleProxyOnlyRequest
+    .then readRequestBody
+    .then buildCacheKey
+    .then handleAdminRequest
+    .then getCachedResponse
+    .then getCacheLockIfNoCachedResponseExists
+    .then getAndCacheResponseIfNeeded
+    .then determineIfCacheIsExpired
+    .then getCacheLockIfCacheIsExpired
+    .then serveCachedResponse
+    .then triggerRebuildOfExpiredCachedResponse
+    .then logAndPassContext("request handling complete")
+    .then (context) ->
+      new Promise (resolve) ->
+        log.debug "cacheLockDescriptor: #{context.cacheLockDescriptor}"
+        resolve(context)
+    .catch (e) ->
+      log.debug "request handling completed in catch" if e.requestHandlingComplete
+      return if e.requestHandlingComplete
+      log.error "error processing request"
+      log.error e.stack
+      response.writeHead 500, {}
+      response.end('{"status": "error", "message": "' + e.message + '"}')
+  using(getContextThatUnlocksCacheOnDispose(), requestPipeline)
+
 
 
 log.info "listening on port %s", config.listenPort

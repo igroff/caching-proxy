@@ -1,5 +1,7 @@
-_   = require 'lodash'
-log = require 'simplog'
+Promise = require 'bluebird'
+_       = require 'lodash'
+log     = require 'simplog'
+cache   = require './cache.coffee'
 
 class Context extends require('stream').Readable
   constructor: (req) ->
@@ -12,6 +14,7 @@ class Context extends require('stream').Readable
       @requestBody = ""
       @request = req
       @socket = req.socket
+      @cacheLockDescriptor = null
       super({})
   toString: => JSON.stringify(url: @url, method: @method, config: @config, body: @body)
   _read: (size) =>
