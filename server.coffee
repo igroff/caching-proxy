@@ -205,8 +205,11 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       fauxProxyResponse = mocks.createResponse()
       handleProxyError = (e) ->
         log.error "error proxying cache rebuild request to #{context.targetConfig.target}\n%s", e
+        reject(e)
+      # since our resopnse is received asynchronously, via an event associated with the proxy object
+      # we'll use this specific method to allow us to resolve when that takes place, so the rest of
+      # the pipeline can complete normally
       context.proxiedResponseCached = () ->
-        log.debug "mother fucking done I tell you"
         resolve(context)
       return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
     resolve(context)
@@ -243,10 +246,6 @@ server = http.createServer (request, response) ->
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse
     .then logAndPassContext("request handling complete")
-    .then (context) ->
-      new Promise (resolve) ->
-        log.debug "cacheLockDescriptor: #{context.cacheLockDescriptor}"
-        resolve(context)
     .catch (e) ->
       log.debug "request handling completed in catch" if e.requestHandlingComplete
       return if e.requestHandlingComplete
