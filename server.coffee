@@ -185,7 +185,7 @@ server = http.createServer (request, response) ->
   # the first step is to build a context object which will get
   # passed to each subsequent step, if a given step receives no
   # context object then there is nothing for it to do
-  buildContext(request, response, {})
+  buildContext(request, response)
   .then determineIfAdminRequest
   .then determineIfProxiedOnlyOrCached
   .then handleProxyOnlyRequest
