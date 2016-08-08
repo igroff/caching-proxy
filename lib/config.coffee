@@ -10,6 +10,7 @@ config =
   tempDir: process.env.TEMP_DIR || process.env.TMPDIR || process.env.TMP || '/tmp'
   defaultTarget: process.env.DEFAULT_TARGET || throw new Error('you must provide a default proxy target')
   targetConfigPath : process.env.TARGET_CONFIG_PATH
+  requestTimeout : process.env.REQUEST_TIMEOUT || 0
 
 if not config.targetConfigPath
   log.error "unable to start with no config specified, provide a TARGET_CONFIG_PATH"

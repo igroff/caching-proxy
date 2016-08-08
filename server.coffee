@@ -7,6 +7,7 @@ EventEmitter  = require 'events'
 log           = require 'simplog'
 crypto        = require 'crypto'
 mocks         = require 'node-mocks-http'
+onHeaders     = require 'on-headers'
 
 config        = require './lib/config.coffee'
 cache         = require './lib/cache.coffee'
@@ -20,7 +21,7 @@ proxy = httpProxy.createProxyServer({})
 # another way this is currently the only way to get the response from
 # http-proxy
 proxy.on 'proxyRes', (proxyRes, request, res) ->
-  log.debug "proxy response received for key: #{request.cacheKey}"
+  log.debug "proxy response received for key: #{request.cacheKey} contextId #{request.contextId}"
   # a configuration may specify that the response be cached, or simply proxied.
   # In the case of caching being desired a cacheKey will be present otherwise
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
@@ -47,8 +48,7 @@ determineIfProxiedOnlyOrCached = (context) ->
   new Promise (resolve, reject) ->
     log.debug "determineIfProxiedOnlyOrCached"
     # the target config defines the proxy only vs. cache state of a
-    # request
-    # it's prossible to specify a proxy target in the request, this is intended to 
+    # request it's prossible to specify a proxy target in the request, this is intended to 
     # be used for testing configuration changes prior to setting them 'in stone' via
     # the config file, if the header is not present or an error is encountered while
     # parsing it, we'll go ahead an pick as normal
@@ -145,12 +145,14 @@ getAndCacheResponseIfNeeded = (context) ->
         .then (cachedResponse) ->
           context.cachedResponse = cachedResponse
           resolve(context)
-        .catch (e) -> reject(e)
+        .catch (e) ->
+          log.debug "error #{e} contextId #{context.contextId}"
+          reject(e)
     cache.events.once "#{context.cacheKey}", responseCachedHandler
     # only if we get the cache lock will we rebuild, otherwise someone else is
     # already rebuilding the cache metching this request
     if context.cacheLockDescriptor
-      log.debug "we got cache lock #{context.cacheLockDescriptor} for #{context.cacheKey}, triggering rebuild"
+      log.debug "we got cache lock #{context.cacheLockDescriptor} for #{context.cacheKey}, triggering rebuild #{context.contextId}"
       fauxProxyResponse = mocks.createResponse()
       handleProxyError = (e) ->
         log.error "error proxying cache rebuild request to #{context.targetConfig}\n%s", e
@@ -177,7 +179,11 @@ getCacheLockIfCacheIsExpired = (context) ->
     log.debug "getCacheLockIfCacheIsExpired"
     cache.promiseToGetCacheLock(context.cacheKey)
     .then (lockDescriptor) ->
-      context.cacheLockDescriptor = lockDescriptor
+      # tight timing can lead us here when we already have a lock descriptor, so we want to make sure we don't overwrite
+      # an existing lock descriptor, because we can end up here with a null value for the lockDescriptor
+      context.cacheLockDescriptor = context.cacheLockDescriptor || lockDescriptor
+      if lockDescriptor
+        log.debug "got cache lock #{context.cacheLockDescriptor} for expired cache item #{context.contextId}"
       resolve(context)
     .catch reject
 
@@ -225,9 +231,13 @@ logAndPassContext = (message) ->
 server = http.createServer (request, response) ->
   getContextThatUnlocksCacheOnDispose = () ->
     buildContext(request, response).disposer (context, promise) ->
+      log.debug "disposing of request #{context.contextId}"
       if context.cacheLockDescriptor
-        log.debug "unlocking cache lock #{context.cacheLockDescriptor} during context dispose"
-        cache.releaseCacheLock(context.cacheLockDescriptor) if context.cacheLockDescriptor
+        log.debug "unlocking cache lock #{context.cacheLockDescriptor} during context dispose #{context.contextId}"
+        if context.cacheLockDescriptor
+          cache.promiseToReleaseCacheLock(context.cacheLockDescriptor).then () ->
+            log.debug "DONE unlocking cache lock #{context.cacheLockDescriptor} during context dispose #{context.contextId}"
+
       else
         log.debug "cache not locked, no unlock needed during context dispose"
 

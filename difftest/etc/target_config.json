@@ -30,6 +30,11 @@
     "maxAgeInMilliseconds": 5000
   },
   {
+    "route": "/epiquery1.*",
+    "target": "http://localhost:9090",
+    "maxAgeInMilliseconds": 1000
+  },
+  {
     "route": "/error/invalid_dns_name",
     "target": "http://this.is.an.invalid.dns.name.fauxr.us/echo",
     "maxAgeInMilliseconds": 0
@@ -47,7 +52,7 @@
   {
     "route": "/howdy.html",
     "target": "http://localhost:8000",
-    "maxAgeInMilliseconds": 5000
+    "maxAgeInMilliseconds": 25
   },
   {
     "route": "*",

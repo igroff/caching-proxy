@@ -41,7 +41,7 @@ tryGetCachedResponse = (cacheKey) ->
     Promise.resolve(undefined)
 
 getCacheFilePath = (requestInfo) ->
-  uniqueIdentifier = "#{process.pid}.#{new Date().getTime}.#{++tempCounter}"
+  uniqueIdentifier = "#{process.pid}.#{new Date().getTime()}.#{++tempCounter}"
   if typeof(requestInfo) is 'string'
     cacheFilePath = path.join(config.cacheDir, requestInfo)
     cacheFileTempPath = path.join(config.tempDir, "#{requestInfo}.#{uniqueIdentifier}")
@@ -64,25 +64,34 @@ deleteCacheEntry = (cacheKey) ->
 cacheResponse = (cacheKey, response) ->
   [cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath] = getCacheFilePath cacheKey
   log.debug "caching response metadata to #{cacheFilePath}, and body to #{cacheBodyFilePath}"
-  metadataStream = fs.createWriteStream(cacheFileTempPath, {flag: 'w+', defaultEncoding: 'utf8'})
+  log.debug "%s %s %s %s", cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath
+  metadataStream = fs.createWriteStream(cacheFileTempPath, {flag: 'w', defaultEncoding: 'utf8'})
+  promiseForMetadataFileToEndWrite = new Promise (resolve, reject) ->
+    metadataStream.on 'finish', resolve
+    metadataStream.on 'error', reject
   metadataStream.write("#{response.statusCode}\n")
   metadataStream.write("#{response.statusMessage}\n")
   metadataStream.write("#{JSON.stringify response.headers}\n")
   metadataStream.end()
-  response.pipe(fs.createWriteStream(cacheBodyFileTempPath, {flat: 'w+', defaultEncoding: 'utf8'}))
+  response.pipe(fs.createWriteStream(cacheBodyFileTempPath, {flat: 'w', defaultEncoding: 'utf8'}))
+  promiseForResponseToEnd = new Promise (resolve, reject) ->
+    response.on 'end', resolve
+    response.on 'error', reject
   new Promise (resolve, reject) ->
-    response.on 'end', () ->
-      # once the response is complete, we will have written (piped) out the response to the
-      # temp file, all that remains is to move the temp files into place of the 'non temp' 
-      # files
-      fs.renameAsync(cacheFileTempPath, cacheFilePath)
-      .then(() -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath))
-      .then( resolve )
-      .then( () -> cacheEventEmitter.emit "#{cacheKey}" )
-      .catch( (e) ->
-        reject(e)
-        cacheEventEmitter.emit "#{cacheKey}", e
-      )
+    promiseForMetadataFileToEndWrite
+    .then promiseForResponseToEnd
+    .then () ->
+        # once the response is complete, we will have written (piped) out the response to the
+        # temp file, all that remains is to move the temp files into place of the 'non temp' 
+        # files
+        fs.renameAsync(cacheFileTempPath, cacheFilePath)
+        .then(() -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath))
+        .then( () -> cacheEventEmitter.emit "#{cacheKey}" )
+        .then( resolve )
+        .catch( (e) ->
+          cacheEventEmitter.emit "#{cacheKey}", e
+          reject(e)
+        )
 
 getCacheLock = (cacheKey) ->
   lockPath = path.join(config.lockDir, "#{cacheKey}.lock")
