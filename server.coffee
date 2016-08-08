@@ -27,7 +27,6 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   if request.cacheKey
     cache.cacheResponse(request.cacheKey, proxyRes)
-    .then( -> request.proxiedResponseCached and request.proxiedResponseCached())
 
 class RequestHandlingComplete extends Error
   constructor: (@stepOrMessage="") ->
@@ -199,9 +198,6 @@ serveCachedResponse = (context) ->
     # just to follow the pattern we'll pass on the context although there's no one after us
     resolve(context)
 
-# while this method does return a promise it doesn't actually wait for any of the results of its async
-# invocations. This method simply determines if a cache rebuild should be triggered, triggers it
-# accordingly.
 triggerRebuildOfExpiredCachedResponse = (context) ->
   new Promise (resolve, reject) ->
     return reject new Error("no cached response found, cannot trigger rebuild") unless context.cachedResponse
@@ -213,11 +209,10 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       handleProxyError = (e) ->
         log.error "error proxying cache rebuild request to #{context.targetConfig.target}\n%s", e
         reject(e)
-      # since our resopnse is received asynchronously, via an event associated with the proxy object
-      # we'll use this specific method to allow us to resolve when that takes place, so the rest of
-      # the pipeline can complete normally
-      context.proxiedResponseCached = () ->
-        resolve(context)
+      # while we don't actually need to wait for this response to be cached ( for the requestor ) because a
+      # cached resopnse will have already been served, we do need to keep our pipeline going as expected
+      # because we have a 'disposable' context that we use to manage this whole flow
+      cache.events.on context.cacheKey, () -> resolve(context)
       return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
     resolve(context)
 
@@ -226,7 +221,6 @@ logAndPassContext = (message) ->
     new Promise (resolve) ->
       log.debug message
       resolve(context)
-    
 
 server = http.createServer (request, response) ->
   getContextThatUnlocksCacheOnDispose = () ->
@@ -234,10 +228,7 @@ server = http.createServer (request, response) ->
       log.debug "disposing of request #{context.contextId}"
       if context.cacheLockDescriptor
         log.debug "unlocking cache lock #{context.cacheLockDescriptor} during context dispose #{context.contextId}"
-        if context.cacheLockDescriptor
-          cache.promiseToReleaseCacheLock(context.cacheLockDescriptor).then () ->
-            log.debug "DONE unlocking cache lock #{context.cacheLockDescriptor} during context dispose #{context.contextId}"
-
+        cache.promiseToReleaseCacheLock(context.cacheLockDescriptor)
       else
         log.debug "cache not locked, no unlock needed during context dispose"
 

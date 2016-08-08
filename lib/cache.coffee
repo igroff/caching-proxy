@@ -65,7 +65,6 @@ cacheResponse = (cacheKey, response) ->
   new Promise (resolve, reject) ->
     [cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath] = getCacheFilePath cacheKey
     log.debug "caching response metadata to #{cacheFilePath}, and body to #{cacheBodyFilePath}"
-    log.debug "%s %s %s %s", cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath
     metadataStream = fs.createWriteStream(cacheFileTempPath, {flag: 'w', defaultEncoding: 'utf8'})
     promiseForMetadataFileToEndWrite = new Promise (resolve, reject) ->
       metadataStream.on 'finish', resolve
