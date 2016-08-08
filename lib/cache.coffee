@@ -8,6 +8,11 @@ EventEmitter  = require 'events'
 config  = require './config.coffee'
 tempCounter = 0
 cacheEventEmitter = new EventEmitter()
+# an arbitrary, but larger than default, max listener count
+# It really shouldn't ever be hit but I kind of feel like we want to know if we
+# have a shitload of cache waiters backed up and this 'll blow it up so we
+# can see
+cacheEventEmitter.setMaxListeners(1000)
 
 tryGetCachedResponse = (cacheKey) ->
   log.debug "tryGetCachedResponse(#{cacheKey})"
@@ -73,17 +78,11 @@ cacheResponse = (cacheKey, response) ->
       fs.renameAsync(cacheFileTempPath, cacheFilePath)
       .then(() -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath))
       .then( resolve )
-      .then( () -> invokeCallbackForCachedResponse(cacheKey) )
+      .then( () -> cacheEventEmitter.emit "#{cacheKey}" )
       .catch( (e) ->
         reject(e)
-        invokeCallbackForCachedResponse(cacheKey, e)
+        cacheEventEmitter.emit "#{cacheKey}", e
       )
-
-runWhenResponseIsCached = (cacheKey, callback) ->
-  cacheEventEmitter.on "#{cacheKey}", callback
-
-invokeCallbackForCachedResponse = (cacheKey, e=null) ->
-  cacheEventEmitter.emit "#{cacheKey}", e
 
 getCacheLock = (cacheKey) ->
   lockPath = path.join(config.lockDir, "#{cacheKey}.lock")
@@ -115,4 +114,4 @@ module.exports.releaseCacheLock = releaseCacheLock
 module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
 module.exports.deleteCacheEntry = deleteCacheEntry
-module.exports.runWhenResponseIsCached = runWhenResponseIsCached
+module.exports.events = cacheEventEmitter

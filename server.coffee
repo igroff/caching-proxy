@@ -146,7 +146,7 @@ getAndCacheResponseIfNeeded = (context) ->
           context.cachedResponse = cachedResponse
           resolve(context)
         .catch (e) -> reject(e)
-    cache.runWhenResponseIsCached(context.cacheKey, responseCachedHandler)
+    cache.events.once "#{context.cacheKey}", responseCachedHandler
     # only if we get the cache lock will we rebuild, otherwise someone else is
     # already rebuilding the cache metching this request
     if context.cacheLockDescriptor
