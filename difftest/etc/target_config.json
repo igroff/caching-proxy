@@ -40,6 +40,11 @@
     "maxAgeInMilliseconds": 0
   },
   {
+    "route": "/mysql/test/mysql_echo.dot",
+    "target": "http://localhost:9090/epiquery1/",
+    "maxAgeInMilliseconds": 5000
+  },
+  {
     "route": "*",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 1000
