@@ -3,6 +3,8 @@ _       = require 'lodash'
 log     = require 'simplog'
 cache   = require './cache.coffee'
 
+idGenerator = 0
+
 class Context extends require('stream').Readable
   constructor: (req) ->
       @url = req.url
@@ -15,6 +17,7 @@ class Context extends require('stream').Readable
       @request = req
       @socket = req.socket
       @cacheLockDescriptor = null
+      @contextId = ++idGenerator
       super({})
   toString: => JSON.stringify(url: @url, method: @method, config: @config, body: @body)
   _read: (size) =>

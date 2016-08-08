@@ -7,7 +7,7 @@ EventEmitter  = require 'events'
 
 config  = require './config.coffee'
 tempCounter = 0
-responseCachedCallbacks = {}
+cacheEventEmitter = new EventEmitter()
 
 tryGetCachedResponse = (cacheKey) ->
   log.debug "tryGetCachedResponse(#{cacheKey})"
@@ -80,13 +80,10 @@ cacheResponse = (cacheKey, response) ->
       )
 
 runWhenResponseIsCached = (cacheKey, callback) ->
-  responseCachedCallbacks[cacheKey] = callback
+  cacheEventEmitter.on "#{cacheKey}", callback
 
 invokeCallbackForCachedResponse = (cacheKey, e=null) ->
-  callback = responseCachedCallbacks[cacheKey]
-  if callback
-    callback(e)
-    delete(responseCachedCallbacks[cacheKey])
+  cacheEventEmitter.emit "#{cacheKey}", e
 
 getCacheLock = (cacheKey) ->
   lockPath = path.join(config.lockDir, "#{cacheKey}.lock")

@@ -137,6 +137,7 @@ getAndCacheResponseIfNeeded = (context) ->
     log.debug "getAndCacheResponseIfNeeded"
     reject new Error("need a cacheKey inorder to cache a response, none present") if not context.cacheKey
     responseCachedHandler = (e) ->
+      log.debug "responseCacheHandler for contextId #{context.contextId}"
       if e
         reject(e)
       else
@@ -156,7 +157,7 @@ getAndCacheResponseIfNeeded = (context) ->
         reject(e)
       proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
     else
-      log.debug "didn't get the cache lock for #{context.cacheKey}, waiting for in progress rebuild"
+      log.debug "didn't get the cache lock for #{context.cacheKey}, waiting for in progress rebuild contextId #{context.contextId}"
 
 
 determineIfCacheIsExpired = (context) ->
