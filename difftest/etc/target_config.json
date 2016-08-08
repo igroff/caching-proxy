@@ -45,8 +45,13 @@
     "maxAgeInMilliseconds": 5000
   },
   {
+    "route": "/howdy.html",
+    "target": "http://localhost:8000",
+    "maxAgeInMilliseconds": 5000
+  },
+  {
     "route": "*",
     "target": "http://localhost:8000",
-    "maxAgeInMilliseconds": 1000
+    "maxAgeInMilliseconds": 0
   }
 ]

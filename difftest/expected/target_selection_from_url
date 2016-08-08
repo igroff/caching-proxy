@@ -2,4 +2,4 @@
 {"route":"/test/servername","target":"http://services.pants.com/something/","maxAgeInMilliseconds":5000,"regexp":{}}
 {"route":"/test/servername","target":"http://services.pants.com/something/","maxAgeInMilliseconds":5000,"regexp":{}}
 {"route":"/test/serverpants","target":"http://servicespants-internal.pants.com/anotherthing/","maxAgeInMilliseconds":5000,"regexp":{}}
-{"route":"*","target":"http://localhost:8000","maxAgeInMilliseconds":1000,"regexp":{}}
+{"route":"*","target":"http://localhost:8000","maxAgeInMilliseconds":0,"regexp":{}}
