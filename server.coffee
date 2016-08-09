@@ -85,6 +85,7 @@ handleProxyOnlyRequest = (context) ->
 
 readRequestBody = (context) ->
   new Promise (resolve, reject) ->
+    # we don't need the body for proxy only requests, it will simply be forwarded to the target
     return resolve(context) if context.isProxyOnly
     log.debug "readRequestBody"
     context.requestBody = ""
