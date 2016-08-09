@@ -38,9 +38,10 @@ determineIfAdminRequest = (context) ->
     log.debug "determineIfAdminRequest"
     adminRequestInfo = admin.getAdminRequestInfo(context.request)
     if adminRequestInfo
-      log.debug "we have an admin request command and url are #{adminRequestInfo}"
+      context.isAdminRequest = true
       context.adminCommand = adminRequestInfo[0]
       context.url = adminRequestInfo[1]
+      log.debug "we have an admin request command '#{context.adminCommand}' and url '#{context.url}'"
     resolve(context)
 
 determineIfProxiedOnlyOrCached = (context) ->
@@ -60,7 +61,9 @@ determineIfProxiedOnlyOrCached = (context) ->
     # if there was no config in the header, then we'll go ahead and load the mathing config
     if not context.targetConfig
       context.targetConfig = config.findMatchingTarget(context.url)
-    context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1
+    # it's a proxy only request if the maxAgeInMilliseconds is < 1, UNLESS it's an admin request which
+    # is never a proxy only request
+    context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1 unless context.isAdminRequest
     resolve(context)
 
 handleProxyOnlyRequest = (context) ->
@@ -77,9 +80,7 @@ handleProxyOnlyRequest = (context) ->
 
 readRequestBody = (context) ->
   new Promise (resolve, reject) ->
-    # if this is not a cached request ( no proxy only requests should get here tho )
-    # then there is no need to read the request body
-    return resolve(context) if context.targetConfig.maxAgeInMilliseconds < 1
+    return resolve(context) if context.isProxyOnly
     log.debug "readRequestBody"
     context.requestBody = ""
     context.request.on 'data', (data) -> context.requestBody += data
@@ -88,9 +89,11 @@ readRequestBody = (context) ->
 
 buildCacheKey = (context) ->
   new Promise (resolve, reject) ->
-    # if there is no timeout, then there is no cache, and thus no need to create a 
-    # cache key
-    return resolve(context) if context.targetConfig.maxAgeInMilliseconds < 1
+    # admin requests need a cache key even if we don't intend to use it
+    if not context.isAdminRequest
+      # if there is no timeout, then there is no cache, and thus no need to create a 
+      # cache key
+      return resolve(context) if context.targetConfig?.maxAgeInMilliseconds < 1
     log.debug "buildCacheKey"
     # build a cache key
     cacheKeyData = "#{context.request.method}-#{context.url}-#{context.requestBody or ""}"
@@ -256,8 +259,6 @@ server = http.createServer (request, response) ->
       response.writeHead 500, {}
       response.end('{"status": "error", "message": "' + e.message + '"}')
   using(getContextThatUnlocksCacheOnDispose(), requestPipeline)
-
-
 
 log.info "listening on port %s", config.listenPort
 log.info "configuration: %j", config

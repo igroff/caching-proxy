@@ -1,4 +1,4 @@
-[
+[}
   {
     "route": "/test/servername",
     "target": "http://services.pants.com/something/",

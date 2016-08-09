@@ -9,7 +9,7 @@ handleAdminRequest = (context) ->
   response = context.response
   log.debug "handling admin request url #{context.url}, command: #{command}"
   if command is 'delete'
-    return handleDeleteRequest(context.cacheKey, response)
+    handleDeleteRequest(context.cacheKey, response)
   else if command is "config"
     # just handing back the current config for whatever reason the caller
     # may have need of seeing it
@@ -20,9 +20,37 @@ handleAdminRequest = (context) ->
   else if command is "diagnostic"
     response.end(jdumps(status: 'ok', message: 'ok'))
   else if command is 'saveTargetConfig'
-    handleConfigSaveRequest(context.response)
+    handleConfigSaveRequest(context.request, context.response)
+  else if command is 'targetConfig' and context.request.method is 'POST'
+    updateTargetConfig(context)
   else
     response.end(jdumps(status: 'error', message: 'unknown request'))
+
+
+updateTargetConfig = (context) ->
+  targetConfigList = context.requestBody
+  throw new Error "must have a request body to parse as target config" unless context.requestBody
+  try
+    targetConfigList = JSON.parse(targetConfigList)
+  catch e
+    context.response.writeHead 500, {}
+    responseMessage =
+      status: "error"
+      message: "error parsing config data: " + e
+    context.response.end JSON.stringify(responseMessage)
+    return
+  try
+    config.setTargetConfig(targetConfigList)
+    log.warn "updating target config with %j", targetConfigList
+  catch e
+    context.response.writeHead 500, {}
+    responseMessage =
+      status: "error"
+      message: "error validating config data: " + e
+    context.response.end JSON.stringify(responseMessage)
+    return
+  context.response.writeHead 200, {}
+  context.response.end JSON.stringify({status: "ok", targets: config.targets})
 
 # this handles a request to save our config, since it can be modified at runtime
 # we may want to ( or not want to ) persist any changes to disk so we allow the

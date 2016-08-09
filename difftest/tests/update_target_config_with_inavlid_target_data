@@ -1,0 +1,3 @@
+#! /usr/bin/env bash
+# vi: set ft=sh
+curl -s http://localhost:8080////targetConfig --data-binary @difftest/data/invalid_target_config.json -H 'Content-Type: application/json'

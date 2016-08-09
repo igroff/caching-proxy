@@ -19,15 +19,24 @@ log.info "loading target config: #{config.targetConfigPath}"
 targetConfigData = fs.readFileSync(config.targetConfigPath, 'utf8')
 log.info "using target config:\n%s", targetConfigData
 
-config.targets = JSON.parse(targetConfigData)
 
-targetRegexBuilder = (target) ->
-  if target.route is '*'
-    target.regexp = new RegExp(/./)
-  else
-    target.regexp = new RegExp('^' + target.route.replace(/\//g, '\\/'))
+config.setTargetConfig = (targetList) ->
+  targetValidator = (target) ->
+    throw new Error "target #{JSON.stringify(target)} needs a valid route value" unless target.route
+    throw new Error "target #{JSON.stringify(target)} needs a valid target value" unless target.target
+    throw new Error "target #{JSON.stringify(target)} must have a numeric value for maxAgeInMilliseconds" if isNaN(Number(target.maxAgeInMilliseconds))
+    throw new Error "target #{JSON.stringify(target)} needs a valid maxAgeInMilliseconds value" unless target.maxAgeInMilliseconds > -1
 
-config.targets.forEach(targetRegexBuilder)
+  targetRegexBuilder = (target) ->
+    if target.route is '*'
+      target.regexp = new RegExp(/./)
+    else
+      target.regexp = new RegExp('^' + target.route.replace(/\//g, '\\/'))
+
+  throw new Error "target config must be an array of target configuration objects" unless _.isArray targetList
+  targetList.forEach(targetValidator)
+  targetList.forEach(targetRegexBuilder)
+  config.targets = targetList
 
 config.findMatchingTarget = (url) ->
   # find the config that matches this request
@@ -48,4 +57,5 @@ config.saveTargetConfig = () ->
   _.each targetConfig, (target) -> delete(target['regexp'])
   fs.writeFileAsync(config.targetConfigPath, JSON.stringify(targetConfig, null, 2), {flag: 'w+'})
 
+config.setTargetConfig(JSON.parse(targetConfigData))
 module.exports = config

@@ -1,7 +1,6 @@
 [
   {
     "route": "/test/servername",
-    "target": "http://services.pants.com/something/",
     "maxAgeInMilliseconds": 5000
   },
   {
