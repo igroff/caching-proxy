@@ -7,7 +7,6 @@ EventEmitter  = require 'events'
 log           = require 'simplog'
 crypto        = require 'crypto'
 mocks         = require 'node-mocks-http'
-onHeaders     = require 'on-headers'
 
 config        = require './lib/config.coffee'
 cache         = require './lib/cache.coffee'
