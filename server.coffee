@@ -44,9 +44,9 @@ determineIfAdminRequest = (context) ->
       log.debug "we have an admin request command '#{context.adminCommand}' and url '#{context.url}'"
     resolve(context)
 
-determineIfProxiedOnlyOrCached = (context) ->
+getTargetConfigForRequest = (context) ->
   new Promise (resolve, reject) ->
-    log.debug "determineIfProxiedOnlyOrCached"
+    log.debug "getTargetConfigForRequest"
     # the target config defines the proxy only vs. cache state of a
     # request it's prossible to specify a proxy target in the request, this is intended to 
     # be used for testing configuration changes prior to setting them 'in stone' via
@@ -61,6 +61,11 @@ determineIfProxiedOnlyOrCached = (context) ->
     # if there was no config in the header, then we'll go ahead and load the mathing config
     if not context.targetConfig
       context.targetConfig = config.findMatchingTarget(context.url)
+    resolve(context)
+
+determineIfProxiedOnlyOrCached = (context) ->
+  new Promise (resolve, reject) ->
+    log.debug "determineIfProxiedOnlyOrCached"
     # it's a proxy only request if the maxAgeInMilliseconds is < 1, UNLESS it's an admin request which
     # is never a proxy only request
     context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1 unless context.isAdminRequest
@@ -238,6 +243,7 @@ server = http.createServer (request, response) ->
   requestPipeline = (context) ->
     Promise.resolve(context)
     .then determineIfAdminRequest
+    .then getTargetConfigForRequest
     .then determineIfProxiedOnlyOrCached
     .then handleProxyOnlyRequest
     .then readRequestBody
