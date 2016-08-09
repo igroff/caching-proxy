@@ -94,11 +94,7 @@ readRequestBody = (context) ->
 
 buildCacheKey = (context) ->
   new Promise (resolve, reject) ->
-    # admin requests need a cache key even if we don't intend to use it
-    if not context.isAdminRequest
-      # if there is no timeout, then there is no cache, and thus no need to create a 
-      # cache key
-      return resolve(context) if context.targetConfig?.maxAgeInMilliseconds < 1
+    return resolve(context) if context.targetConfig?.maxAgeInMilliseconds < 1
     log.debug "buildCacheKey"
     # build a cache key
     cacheKeyData = "#{context.request.method}-#{context.url}-#{context.requestBody or ""}"
