@@ -8,6 +8,8 @@ EventEmitter  = require 'events'
 config  = require './config.coffee'
 tempCounter = 0
 cacheEventEmitter = new EventEmitter()
+useFileLocks = false
+lockMap = {}
 # an arbitrary, but larger than default, max listener count
 # It really shouldn't ever be hit but I kind of feel like we want to know if we
 # have a shitload of cache waiters backed up and this 'll blow it up so we
@@ -91,34 +93,37 @@ cacheResponse = (cacheKey, response) ->
       reject(e)
     )
 
-getCacheLock = (cacheKey) ->
-  lockPath = path.join(config.lockDir, "#{cacheKey}.lock")
-  return lock.tryAquireLock lockPath
 
 promiseToGetCacheLock = (cacheKey) ->
-  new Promise (resolve, reject) ->
-    lockPath = path.join(config.lockDir, "#{cacheKey}.lock")
-    lock.tryAquireLockAsync(lockPath)
-    .then resolve
-    .catch reject
-
-releaseCacheLock = (lockDescriptor) ->
-  if lockDescriptor
-    lock.releaseLock lockDescriptor
-  else
-    log.debug "requested release of key lock #{cacheKey} when it wasn't locked" unless lockDescriptor
+  return new Promise (resolve, reject) ->
+    if useFileLocks
+      lockPath = path.join(config.lockDir, "#{cacheKey}.lock")
+      lock.tryAquireLockAsync(lockPath)
+      .then resolve
+      .catch reject
+    else
+      resolve(null) if lockMap[cacheKey]
+      lockMap[cacheKey] =  true
+      resolve(cacheKey)
+    
+  
 
 promiseToReleaseCacheLock = (lockDescriptor) ->
   new Promise (resolve, reject) ->
-    lock.releaseLockAsync(lockDescriptor)
-    .then resolve
-    .catch reject
+    if useFileLocks
+      lock.releaseLockAsync(lockDescriptor)
+      .then resolve
+      .catch reject
+    else
+      delete lockMap[lockDescriptor]
+      resolve()
 
 module.exports.tryGetCachedResponse = tryGetCachedResponse
 module.exports.cacheResponse = cacheResponse
-module.exports.getCacheLock = getCacheLock
-module.exports.releaseCacheLock = releaseCacheLock
 module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
 module.exports.deleteCacheEntry = deleteCacheEntry
 module.exports.events = cacheEventEmitter
+module.exports.enableFileLocks = () ->
+  log.info "cache locking using file locks"
+  useFileLocks = true
