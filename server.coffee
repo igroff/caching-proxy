@@ -216,7 +216,7 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       # while we don't actually need to wait for this response to be cached ( for the requestor ) because a
       # cached resopnse will have already been served, we do need to keep our pipeline going as expected
       # because we have a 'disposable' context that we use to manage this whole flow
-      cache.events.on context.cacheKey, () -> resolve(context)
+      cache.events.once context.cacheKey, () -> resolve(context)
       return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
     resolve(context)
 

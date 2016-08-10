@@ -6,7 +6,7 @@ _       = require 'lodash'
 config =
   listenPort: process.env.PORT || 8080
   cacheDir: process.env.CACHE_DIR || process.env.TMPDIR || process.env.TMP || '/tmp'
-  lockDir: process.env.LOCK_DIR || process.env.LOCK_DIR || '/var/run'
+  lockDir: process.env.LOCK_DIR || process.env.TMPDIR || '/var/run'
   tempDir: process.env.TEMP_DIR || process.env.TMPDIR || process.env.TMP || '/tmp'
   defaultTarget: process.env.DEFAULT_TARGET || throw new Error('you must provide a default proxy target')
   targetConfigPath : process.env.TARGET_CONFIG_PATH
