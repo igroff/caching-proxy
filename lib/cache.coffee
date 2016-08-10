@@ -79,6 +79,7 @@ cacheResponse = (cacheKey, response) ->
     response.pipe(bodyCacheWriteStream)
     promiseForResponseToEnd = new Promise (resolve, reject) ->
       bodyCacheWriteStream.on 'close', resolve
+      bodyCacheWriteStream.on 'error', reject
       response.on 'error', reject
     # once the response is complete, we will have written (piped) out the response to the
     # temp file, all that remains is to move the temp files into place of the 'non temp' 
