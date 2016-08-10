@@ -151,6 +151,7 @@ getAndCacheResponseIfNeeded = (context) ->
         .catch (e) ->
           log.debug "error #{e} contextId #{context.contextId}"
           reject(e)
+    # if we've arrived here it's because the cached response didn't exist so we know we'll want to wait for one
     cache.events.once "#{context.cacheKey}", responseCachedHandler
     # only if we get the cache lock will we rebuild, otherwise someone else is
     # already rebuilding the cache metching this request
@@ -220,12 +221,6 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
     resolve(context)
 
-logAndPassContext = (message) ->
-  (context) ->
-    new Promise (resolve) ->
-      log.debug message
-      resolve(context)
-
 server = http.createServer (request, response) ->
   getContextThatUnlocksCacheOnDispose = () ->
     buildContext(request, response).disposer (context, promise) ->
@@ -252,7 +247,7 @@ server = http.createServer (request, response) ->
     .then getCacheLockIfCacheIsExpired
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse
-    .then logAndPassContext("request handling complete")
+    .tap -> log.debug("request handling complete")
     .catch (e) ->
       log.debug "request handling completed in catch" if e.requestHandlingComplete
       return if e.requestHandlingComplete
