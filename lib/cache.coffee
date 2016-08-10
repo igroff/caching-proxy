@@ -78,23 +78,23 @@ cacheResponse = (cacheKey, response) ->
     bodyCacheWriteStream = fs.createWriteStream(cacheBodyFileTempPath, {flat: 'w', defaultEncoding: 'utf8'})
     response.pipe(bodyCacheWriteStream)
     promiseForResponseToEnd = new Promise (resolve, reject) ->
-      bodyCacheWriteStream.on 'close', resolve
+      bodyCacheWriteStream.on 'finish', resolve
       bodyCacheWriteStream.on 'error', reject
       response.on 'error', reject
     # once the response is complete, we will have written (piped) out the response to the
     # temp file, all that remains is to move the temp files into place of the 'non temp' 
     # files
     promiseForMetadataFileToEndWrite
-    .then promiseForResponseToEnd
+    .then () -> promiseForResponseToEnd
     .then () -> fs.renameAsync(cacheFileTempPath, cacheFilePath)
     .then () -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath)
+    .tap log.debug "response for #{cacheKey} has been written to cache"
     .then () -> cacheEventEmitter.emit("#{cacheKey}")
     .then resolve
     .catch( (e) ->
       cacheEventEmitter.emit "#{cacheKey}", e
       reject(e)
     )
-
 
 promiseToGetCacheLock = (cacheKey) ->
   return new Promise (resolve, reject) ->
@@ -107,8 +107,6 @@ promiseToGetCacheLock = (cacheKey) ->
       resolve(null) if lockMap[cacheKey]
       lockMap[cacheKey] =  true
       resolve(cacheKey)
-    
-  
 
 promiseToReleaseCacheLock = (lockDescriptor) ->
   new Promise (resolve, reject) ->
