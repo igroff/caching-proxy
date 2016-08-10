@@ -75,9 +75,10 @@ cacheResponse = (cacheKey, response) ->
     metadataStream.write("#{response.statusMessage}\n")
     metadataStream.write("#{JSON.stringify response.headers}\n")
     metadataStream.end()
-    response.pipe(fs.createWriteStream(cacheBodyFileTempPath, {flat: 'w', defaultEncoding: 'utf8'}))
+    bodyCacheWriteStream = fs.createWriteStream(cacheBodyFileTempPath, {flat: 'w', defaultEncoding: 'utf8'})
+    response.pipe(bodyCacheWriteStream)
     promiseForResponseToEnd = new Promise (resolve, reject) ->
-      response.on 'end', resolve
+      bodyCacheWriteStream.on 'close', resolve
       response.on 'error', reject
     # once the response is complete, we will have written (piped) out the response to the
     # temp file, all that remains is to move the temp files into place of the 'non temp' 
