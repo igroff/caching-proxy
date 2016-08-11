@@ -222,6 +222,7 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
     resolve(context)
 
 server = http.createServer (request, response) ->
+  log.debug "handling request for #{request.url}"
   getContextThatUnlocksCacheOnDispose = () ->
     buildContext(request, response).disposer (context, promise) ->
       log.debug "disposing of request #{context.contextId}"
