@@ -12,7 +12,7 @@ fi
 
 echo ""
 # clear the cache
-curl -s http://localhost:8080////delete/howdy.html
+curl -s http://localhost:8080/____/delete/howdy.html
 echo ""
 
 echo ${CACHE_PATH}

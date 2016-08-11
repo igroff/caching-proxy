@@ -88,8 +88,8 @@ handleDeleteRequest = (cacheKey, response) ->
 # indicate that the request is an 'admin' request, and that deletion is the desired action
 getAdminRequestInfo = (request) ->
   # admin requests will start with ////
-  return null unless request.url.startsWith('////')
-  trimmedUrl = request.url.replace(/^\/\/\/\//, '')
+  return null unless request.url.startsWith('/____')
+  trimmedUrl = request.url.replace(/^\/____\//, '')
   parts = trimmedUrl.split '/'
   command = parts.shift()
   url = "/#{parts.join('/')}"

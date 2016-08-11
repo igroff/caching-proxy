@@ -1,2 +1,2 @@
 #! /usr/bin/env bash
-curl -s http://localhost:8080////target/error/invalid_cert
+curl -s http://localhost:8080/____/target/error/invalid_cert
