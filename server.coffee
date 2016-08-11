@@ -32,6 +32,11 @@ class RequestHandlingComplete extends Error
     @requestHandlingComplete = true
     super()
 
+noteStartTime = (context) ->
+  new Promise (resolve, reject) ->
+    context.requestStartTime = new Date()
+    resolve(context)
+
 determineIfAdminRequest = (context) ->
   new Promise (resolve, reject) ->
     log.debug "determineIfAdminRequest"
@@ -198,6 +203,7 @@ serveCachedResponse = (context) ->
     cachedResponse.headers['x-cached-by-route'] = context.targetConfig.route
     cachedResponse.headers['x-cache-key'] = context.cacheKey
     cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
+    cachedResponse.headers['x-cache-serve-duration-ms'] = new Date().getTime() -  context.requestStartTime.getTime()
     context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
     cachedResponse.body.pipe(context.response)
     # just to follow the pattern we'll pass on the context although there's no one after us
@@ -234,6 +240,7 @@ server = http.createServer (request, response) ->
 
   requestPipeline = (context) ->
     Promise.resolve(context)
+    .then noteStartTime
     .then determineIfAdminRequest
     .then getTargetConfigForRequest
     .then determineIfProxiedOnlyOrCached
