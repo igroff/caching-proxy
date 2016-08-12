@@ -33,23 +33,20 @@ class RequestHandlingComplete extends Error
     super()
 
 noteStartTime = (context) ->
-  new Promise (resolve, reject) ->
-    context.requestStartTime = new Date()
-    resolve(context)
+  context.requestStartTime = new Date()
+  return context
 
 determineIfAdminRequest = (context) ->
-  new Promise (resolve, reject) ->
-    log.debug "determineIfAdminRequest"
-    adminRequestInfo = admin.getAdminRequestInfo(context.request)
-    if adminRequestInfo
-      context.isAdminRequest = true
-      context.adminCommand = adminRequestInfo[0]
-      context.url = adminRequestInfo[1]
-      log.debug "we have an admin request command '#{context.adminCommand}' and url '#{context.url}'"
-    resolve(context)
+  log.debug "determineIfAdminRequest"
+  adminRequestInfo = admin.getAdminRequestInfo(context.request)
+  if adminRequestInfo
+    context.isAdminRequest = true
+    context.adminCommand = adminRequestInfo[0]
+    context.url = adminRequestInfo[1]
+    log.debug "we have an admin request command '#{context.adminCommand}' and url '#{context.url}'"
+  return context
 
 getTargetConfigForRequest = (context) ->
-  new Promise (resolve, reject) ->
     log.debug "getTargetConfigForRequest"
     # the target config defines the proxy only vs. cache state of a
     # request it's prossible to specify a proxy target in the request, this is intended to 
@@ -65,15 +62,14 @@ getTargetConfigForRequest = (context) ->
     # if there was no config in the header, then we'll go ahead and load the mathing config
     if not context.targetConfig
       context.targetConfig = config.findMatchingTarget(context.url)
-    resolve(context)
+    return context
 
 determineIfProxiedOnlyOrCached = (context) ->
-  new Promise (resolve, reject) ->
-    log.debug "determineIfProxiedOnlyOrCached"
-    # it's a proxy only request if the maxAgeInMilliseconds is < 1, UNLESS it's an admin request which
-    # is never a proxy only request
-    context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1 unless context.isAdminRequest
-    resolve(context)
+  log.debug "determineIfProxiedOnlyOrCached"
+  # it's a proxy only request if the maxAgeInMilliseconds is < 1, UNLESS it's an admin request which
+  # is never a proxy only request
+  context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1 unless context.isAdminRequest
+  return context
 
 handleProxyOnlyRequest = (context) ->
   new Promise (resolve, reject) ->
@@ -98,23 +94,21 @@ readRequestBody = (context) ->
     context.request.on 'error', reject
 
 buildCacheKey = (context) ->
-  new Promise (resolve, reject) ->
-    return resolve(context) if context.targetConfig?.maxAgeInMilliseconds < 1
-    log.debug "buildCacheKey"
-    # build a cache key
-    cacheKeyData = "#{context.request.method}-#{context.url}-#{context.requestBody or ""}"
-    context.cacheKey = crypto.createHash('md5').update(cacheKeyData).digest("hex")
-    log.debug "request cache key: #{context.cacheKey}"
-    resolve(context)
+  return context if context.targetConfig?.maxAgeInMilliseconds < 1
+  log.debug "buildCacheKey"
+  # build a cache key
+  cacheKeyData = "#{context.request.method}-#{context.url}-#{context.requestBody or ""}"
+  context.cacheKey = crypto.createHash('md5').update(cacheKeyData).digest("hex")
+  log.debug "request cache key: #{context.cacheKey}"
+  return context
 
 handleAdminRequest = (context) ->
-  new Promise (resolve, reject) ->
-    # no admin command means it's not an admin request
-    return resolve(context) if not context.adminCommand
-    log.debug "handleAdminRequest"
-    admin.requestHandler context
-    # admin 'stuff' is all handled in the admin handler so we're done here
-    reject new RequestHandlingComplete()
+  # no admin command means it's not an admin request
+  return context if not context.adminCommand
+  log.debug "handleAdminRequest"
+  admin.requestHandler context
+  # admin 'stuff' is all handled in the admin handler so we're done here
+  throw new RequestHandlingComplete()
 
 getCachedResponse = (context) ->
   new Promise (resolve, reject) ->
@@ -172,15 +166,14 @@ getAndCacheResponseIfNeeded = (context) ->
 
 
 determineIfCacheIsExpired = (context) ->
-  new Promise (resolve, reject) ->
-    log.debug "determineIfCacheIsExpired"
-    cachedResponse = context.cachedResponse
-    now = new Date().getTime()
-    # if our cached response is older than is configured for the max age, then we'll
-    # queue up a rebuild request BUT still serve the cached response
-    log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{context.targetConfig.maxAgeInMilliseconds}"
-    context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
-    resolve(context)
+  log.debug "determineIfCacheIsExpired"
+  cachedResponse = context.cachedResponse
+  now = new Date().getTime()
+  # if our cached response is older than is configured for the max age, then we'll
+  # queue up a rebuild request BUT still serve the cached response
+  log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{context.targetConfig.maxAgeInMilliseconds}"
+  context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+  return context
 
 getCacheLockIfCacheIsExpired = (context) ->
   new Promise (resolve, reject) ->
@@ -197,17 +190,15 @@ getCacheLockIfCacheIsExpired = (context) ->
     .catch reject
 
 serveCachedResponse = (context) ->
-  new Promise (resolve, reject) ->
-    log.debug "serveCachedResponse"
-    cachedResponse = context.cachedResponse
-    cachedResponse.headers['x-cached-by-route'] = context.targetConfig.route
-    cachedResponse.headers['x-cache-key'] = context.cacheKey
-    cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
-    cachedResponse.headers['x-cache-serve-duration-ms'] = new Date().getTime() -  context.requestStartTime.getTime()
-    context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
-    cachedResponse.body.pipe(context.response)
-    # just to follow the pattern we'll pass on the context although there's no one after us
-    resolve(context)
+  log.debug "serveCachedResponse"
+  cachedResponse = context.cachedResponse
+  cachedResponse.headers['x-cached-by-route'] = context.targetConfig.route
+  cachedResponse.headers['x-cache-key'] = context.cacheKey
+  cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
+  cachedResponse.headers['x-cache-serve-duration-ms'] = new Date().getTime() -  context.requestStartTime.getTime()
+  context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
+  cachedResponse.body.pipe(context.response)
+  return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->
   new Promise (resolve, reject) ->
