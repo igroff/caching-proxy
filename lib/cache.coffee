@@ -44,12 +44,8 @@ tryGetCachedResponse = (cacheKey) ->
 
 getCacheFilePath = (requestInfo) ->
   uniqueIdentifier = "#{process.pid}.#{new Date().getTime()}.#{++tempCounter}"
-  if typeof(requestInfo) is 'string'
-    cacheFilePath = path.join(config.cacheDir, requestInfo)
-    cacheFileTempPath = path.join(config.tempDir, "#{requestInfo}.#{uniqueIdentifier}")
-  else
-    cacheFilePath = path.join(config.cacheDir, requestInfo.cacheKey)
-    cacheFileTempPath = path.join(config.tempDir, "#{requestInfo.cacheKey}.#{uniqueIdentifier}")
+  cacheFilePath = path.join(config.cacheDir, requestInfo)
+  cacheFileTempPath = path.join(config.tempDir, "#{requestInfo}.#{uniqueIdentifier}")
   return [cacheFilePath, "#{cacheFilePath}.body", cacheFileTempPath, "#{cacheFileTempPath}.body"]
 
 deleteCacheEntry = (cacheKey) ->
