@@ -2,13 +2,13 @@ Promise       = require 'bluebird'
 fs            = Promise.promisifyAll(require('fs'))
 path          = require 'path'
 log           = require 'simplog'
-lock          = Promise.promisifyAll(require('./file_lock.coffee'))
 EventEmitter  = require 'events'
 
 config  = require './config.coffee'
+
+# just a counter to help us create unique file names
 tempCounter = 0
 cacheEventEmitter = new EventEmitter()
-useFileLocks = false
 lockMap = {}
 # an arbitrary, but larger than default, max listener count
 # It really shouldn't ever be hit but I kind of feel like we want to know if we
@@ -94,25 +94,14 @@ cacheResponse = (cacheKey, response) ->
 
 promiseToGetCacheLock = (cacheKey) ->
   return new Promise (resolve, reject) ->
-    if useFileLocks
-      lockPath = path.join(config.lockDir, "#{cacheKey}.lock")
-      lock.tryAquireLockAsync(lockPath)
-      .then resolve
-      .catch reject
-    else
-      resolve(null) if lockMap[cacheKey]
-      lockMap[cacheKey] =  true
-      resolve(cacheKey)
+    resolve(null) if lockMap[cacheKey]
+    lockMap[cacheKey] =  true
+    resolve(cacheKey)
 
 promiseToReleaseCacheLock = (lockDescriptor) ->
   new Promise (resolve, reject) ->
-    if useFileLocks
-      lock.releaseLockAsync(lockDescriptor)
-      .then resolve
-      .catch reject
-    else
-      delete lockMap[lockDescriptor]
-      resolve()
+    delete lockMap[lockDescriptor]
+    resolve()
 
 module.exports.tryGetCachedResponse = tryGetCachedResponse
 module.exports.cacheResponse = cacheResponse
@@ -120,6 +109,3 @@ module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
 module.exports.deleteCacheEntry = deleteCacheEntry
 module.exports.events = cacheEventEmitter
-module.exports.enableFileLocks = () ->
-  log.info "cache locking using file locks"
-  useFileLocks = true
