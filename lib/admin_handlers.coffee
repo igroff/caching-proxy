@@ -2,7 +2,7 @@ log       = require 'simplog'
 config    = require './config.coffee'
 cache     = require './cache.coffee'
 
-jdumps    = JSON.stringify
+stringify = JSON.stringify
 
 handleAdminRequest = (context) ->
   command = context.adminCommand
@@ -13,18 +13,17 @@ handleAdminRequest = (context) ->
   else if command is "config"
     # just handing back the current config for whatever reason the caller
     # may have need of seeing it
-    response.end(jdumps({status: 'ok', config: config}))
+    response.end(stringify({status: 'ok', config: config}))
   else if command is "target"
-    # regexp is purely for our own internal matching, no need to return it
-    response.end(jdumps(context.targetConfig))
+    response.end(stringify(context.targetConfig))
   else if command is "diagnostic"
-    response.end(jdumps(status: 'ok', message: 'ok'))
+    response.end(stringify(status: 'ok', message: 'ok'))
   else if command is 'saveTargetConfig'
     handleConfigSaveRequest(context.request, context.response)
   else if command is 'targetConfig' and context.request.method is 'POST'
     updateTargetConfig(context)
   else
-    response.end(jdumps(status: 'error', message: 'unknown request'))
+    response.end(stringify(status: 'error', message: 'unknown request'))
 
 
 updateTargetConfig = (context) ->
@@ -37,7 +36,7 @@ updateTargetConfig = (context) ->
     responseMessage =
       status: "error"
       message: "error parsing config data: " + e
-    context.response.end JSON.stringify(responseMessage)
+    context.response.end stringify(responseMessage)
     return
   try
     config.setTargetConfig(targetConfigList)
@@ -47,29 +46,29 @@ updateTargetConfig = (context) ->
     responseMessage =
       status: "error"
       message: "error validating config data: " + e
-    context.response.end JSON.stringify(responseMessage)
+    context.response.end stringify(responseMessage)
     return
   context.response.writeHead 200, {}
-  context.response.end JSON.stringify({status: "ok", targets: config.targets})
+  context.response.end stringify({status: "ok", targets: config.targets})
 
 # this handles a request to save our config, since it can be modified at runtime
 # we may want to ( or not want to ) persist any changes to disk so we allow the
 # user to decide by invoking this method
 handleConfigSaveRequest = (response) ->
   config.saveTargetConfig()
-  .then () -> res.end(jdumps(status: 'ok'))
+  .then () -> res.end(stringify(status: 'ok'))
   .catch (e) ->
     log.error "error saving target configuration data\n%s", e
-    response.end(jdumps(status: 'error', message: e.message))
+    response.end(stringify(status: 'error', message: e.message))
 
 # this handles a request to delete a cache entry
 handleDeleteRequest = (cacheKey, response) ->
   cache.deleteCacheEntry(cacheKey)
   .then () ->
-    response.end(jdumps(status: 'ok', message: 'cache entry removed'))
+    response.end(stringify(status: 'ok', message: 'cache entry removed'))
   .catch (e) ->
     log.error "error removing cache entry\n%s", e
-    response.end(jdumps(status: 'error', message: e.message))
+    response.end(stringify(status: 'error', message: e.message))
 
 # 'admin requests', or those destined for the proxy server itself, will be prefixed in such a way
 # as to make them ulikely to conflict with valid requests this method determines if we have

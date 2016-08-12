@@ -1,7 +1,6 @@
 Promise = require 'bluebird'
 _       = require 'lodash'
 log     = require 'simplog'
-cache   = require './cache.coffee'
 
 idGenerator = 0
 
@@ -26,7 +25,6 @@ class Context extends require('stream').Readable
 
 buildContext = (request, response) ->
   new Promise (resolve) ->
-    log.debug "buildContext"
     baseContext = new Context(request)
     baseContext.request = request
     baseContext.response = response
