@@ -1,12 +1,12 @@
 [
   {
     "route": "/test/servername",
-    "target": "http://services.pants.com/something/",
+    "target": "http://services.pants.com/something/{{ROUTE_NAME}}",
     "maxAgeInMilliseconds": 5000
   },
   {
     "route": "/test/serverpants",
-    "target": "http://servicespants-internal.pants.com/anotherthing/",
+    "target": "http://servicespants-internal.pants.com/anotherthing/{{PATH}}",
     "maxAgeInMilliseconds": 5000
   },
   {
@@ -53,6 +53,11 @@
     "route": "/howdy.html",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 25
+  },
+  {
+    "route": "/bidb/sys/logShippedReplicaStatus.mustache.*",
+    "target": "http://services-internal.glgresearch.com/epiops",
+    "maxAgeInMilliseconds": 5000
   },
   {
     "route": "*",

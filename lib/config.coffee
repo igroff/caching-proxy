@@ -2,6 +2,7 @@ Promise = require 'bluebird'
 fs      = Promise.promisifyAll(require('fs'))
 log     = require 'simplog'
 _       = require 'lodash'
+hogan   = require 'hogan.js'
 
 config =
   listenPort: process.env.PORT || 8080
@@ -20,7 +21,12 @@ targetConfigData = fs.readFileSync(config.targetConfigPath, 'utf8')
 log.info "using target config:\n%s", targetConfigData
 
 
-config.setTargetConfig = (targetList) ->
+config.setTargetConfig = (targetConfig) ->
+  if typeof(targetConfig) is "string"
+    targetConfigTemplate = hogan.compile(targetConfig)
+    configRenderContext = process.env
+    targetList = JSON.parse(targetConfigTemplate.render(configRenderContext))
+
   targetValidator = (target) ->
     throw new Error "target #{JSON.stringify(target)} needs a valid route value" unless target.route
     throw new Error "target #{JSON.stringify(target)} needs a valid target value" unless target.target
@@ -57,5 +63,5 @@ config.saveTargetConfig = () ->
   _.each targetConfig, (target) -> delete(target['regexp'])
   fs.writeFileAsync(config.targetConfigPath, JSON.stringify(targetConfig, null, 2), {flag: 'w+'})
 
-config.setTargetConfig(JSON.parse(targetConfigData))
+config.setTargetConfig(targetConfigData)
 module.exports = config

@@ -30,17 +30,8 @@ updateTargetConfig = (context) ->
   targetConfigList = context.requestBody
   throw new Error "must have a request body to parse as target config" unless context.requestBody
   try
-    targetConfigList = JSON.parse(targetConfigList)
-  catch e
-    context.response.writeHead 500, {}
-    responseMessage =
-      status: "error"
-      message: "error parsing config data: " + e
-    context.response.end stringify(responseMessage)
-    return
-  try
     config.setTargetConfig(targetConfigList)
-    log.warn "updating target config with %j", targetConfigList
+    log.warn "updating target config with %s", targetConfigList
   catch e
     context.response.writeHead 500, {}
     responseMessage =
