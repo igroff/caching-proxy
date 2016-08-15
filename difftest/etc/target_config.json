@@ -1,12 +1,12 @@
 [
   {
     "route": "/test/servername",
-    "target": "http://services.pants.com/something/{{ROUTE_NAME}}",
+    "target": "http://services.pants.com/something/",
     "maxAgeInMilliseconds": 5000
   },
   {
     "route": "/test/serverpants",
-    "target": "http://servicespants-internal.pants.com/anotherthing/{{PATH}}",
+    "target": "http://servicespants-internal.pants.com/anotherthing/",
     "maxAgeInMilliseconds": 5000
   },
   {

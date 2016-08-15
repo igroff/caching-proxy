@@ -1,0 +1,5 @@
+#! /usr/bin/env bash
+# vi:set ft=sh
+# a simple get request, 
+curl -v 'http://localhost:8080/howdy.html?from=thequerystring' 2>&1 | egrep 'thequerystring|x-cache-key' | sed -E -e 's/user-agent=curl\/[0-9]\.[0-9]{1,2}\.[0-9]{1,2} //g'
+curl -v 'http://localhost:8080/howdy.html?from=thequerystring2' 2>&1 | egrep 'thequerystring|x-cache-key' | sed -E -e 's/user-agent=curl\/[0-9]\.[0-9]{1,2}\.[0-9]{1,2} //g'
