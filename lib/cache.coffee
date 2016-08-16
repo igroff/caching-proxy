@@ -39,7 +39,7 @@ tryGetCachedResponse = (cacheKey) ->
     cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
     Promise.resolve(cacheResponse)
   .catch (e) ->
-    log.info "error opening cache file #{cacheFilePath} #{e.message}"
+    log.debug "error opening cache file #{cacheFilePath} #{e.message}"
     Promise.resolve(undefined)
 
 getCacheFilePath = (requestInfo) ->
