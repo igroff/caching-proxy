@@ -195,9 +195,11 @@ serveCachedResponse = (context) ->
   cachedResponse.headers['x-cached-by-route'] = context.targetConfig.route
   cachedResponse.headers['x-cache-key'] = context.cacheKey
   cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
-  cachedResponse.headers['x-cache-serve-duration-ms'] = new Date().getTime() -  context.requestStartTime.getTime()
+  serveDuration = new Date().getTime() -  context.requestStartTime.getTime()
+  cachedResponse.headers['x-cache-serve-duration-ms'] = serveDuration
   context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
   cachedResponse.body.pipe(context.response)
+  context.response.on 'finish', () -> log.info "#{context.request.url} cached response served in #{serveDuration}ms"
   return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->

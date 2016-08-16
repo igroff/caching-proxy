@@ -39,7 +39,6 @@ updateTargetConfig = (context) ->
       message: "error validating config data: " + e
     context.response.end stringify(responseMessage)
     return
-  context.response.writeHead 200, {}
   context.response.end stringify({status: "ok", targets: config.targets})
 
 # this handles a request to save our config, since it can be modified at runtime
