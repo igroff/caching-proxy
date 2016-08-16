@@ -244,9 +244,9 @@ server = http.createServer (request, response) ->
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse
     .tap -> log.debug("request handling complete")
+    .catch RequestHandlingComplete, (e) ->
+      log.debug "request handling completed in catch"
     .catch (e) ->
-      log.debug "request handling completed in catch" if e.requestHandlingComplete
-      return if e.requestHandlingComplete
       log.error "error processing request"
       log.error e.stack
       response.writeHead 500, {}
