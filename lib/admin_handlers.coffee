@@ -32,6 +32,7 @@ updateTargetConfig = (context) ->
   try
     config.setTargetConfig(targetConfigList)
     log.warn "updating target config with %s", targetConfigList
+    return context.response.end stringify({status: "ok", targets: config.targets})
   catch e
     context.response.writeHead 500, {}
     responseMessage =
@@ -39,7 +40,6 @@ updateTargetConfig = (context) ->
       message: "error validating config data: " + e
     context.response.end stringify(responseMessage)
     return
-  context.response.end stringify({status: "ok", targets: config.targets})
 
 # this handles a request to save our config, since it can be modified at runtime
 # we may want to ( or not want to ) persist any changes to disk so we allow the

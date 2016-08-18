@@ -19,7 +19,7 @@ cacheEventEmitter.setMaxListeners(1000)
 tryGetCachedResponse = (cacheKey) ->
   log.debug "tryGetCachedResponse(#{cacheKey})"
   [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
-  fs.statAsync(cacheFilePath)
+  return fs.statAsync(cacheFilePath)
   .then () ->
     fs.statAsync(cacheBodyFilePath)
   .then (stats) ->
@@ -37,10 +37,10 @@ tryGetCachedResponse = (cacheKey) ->
     cacheResponse.headers = JSON.parse(lines[2])
     cacheResponse.createTime = stats.ctime.getTime()
     cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
-    Promise.resolve(cacheResponse)
+    return cacheResponse
   .catch (e) ->
     log.debug "error opening cache file #{cacheFilePath} #{e.message}"
-    Promise.resolve(undefined)
+    return undefined
 
 getCacheFilePath = (requestInfo) ->
   uniqueIdentifier = "#{process.pid}.#{new Date().getTime()}.#{++tempCounter}"

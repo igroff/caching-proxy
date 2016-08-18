@@ -50,18 +50,17 @@ determineIfAdminRequest = (context) ->
 
 getTargetConfigForRequest = (context) ->
     log.debug "getTargetConfigForRequest"
-    # the target config defines the proxy only vs. cache state of a
-    # request it's prossible to specify a proxy target in the request, this is intended to 
+    # it's prossible to specify a proxy target in the request, this is intended to 
     # be used for testing configuration changes prior to setting them 'in stone' via
-    # the config file, if the header is not present or an error is encountered while
-    # parsing it, we'll go ahead an pick as normal
+    # the config file, if the header IS present and an error is encountered while
+    # parsing it, we'll blow up
     headerConfig = context.request.headers['x-proxy-target-config']
     if headerConfig
       try
         context.targetConfig = JSON.parse(headerConfig)
       catch e
-        reject new Error("error parsing target config from provided header: #{headerConfig}\n #{e.message}")
-    # if there was no config in the header, then we'll go ahead and load the mathing config
+        throw new Error("error parsing target config from provided header: #{headerConfig}\n #{e.message}")
+    # if there was no config in the header, then we'll go ahead and load the matching config
     if not context.targetConfig
       context.targetConfig = config.findMatchingTarget(context.url)
     return context
@@ -80,7 +79,7 @@ handleProxyOnlyRequest = (context) ->
     proxyError = (e) ->
       log.error "error during proxy only request"
       reject(e)
-    context.response.on 'finish', () ->
+    context.response.once 'finish', () ->
       #This one is a bit odd, because if we proxy the request, we're done that's all there is to do
       reject new RequestHandlingComplete()
     proxy.web(context.request, context.response, { target: context.targetConfig.target }, proxyError)
@@ -92,8 +91,8 @@ readRequestBody = (context) ->
     log.debug "readRequestBody"
     context.requestBody = ""
     context.request.on 'data', (data) -> context.requestBody += data
-    context.request.on 'end', () -> resolve(context)
-    context.request.on 'error', reject
+    context.request.once 'end', () -> resolve(context)
+    context.request.once 'error', reject
 
 buildCacheKey = (context) ->
   return context if context.targetConfig?.maxAgeInMilliseconds < 1
@@ -113,25 +112,21 @@ handleAdminRequest = (context) ->
   throw new RequestHandlingComplete()
 
 getCachedResponse = (context) ->
-  new Promise (resolve, reject) ->
-    # nothing to do if there is no cache key
-    return resolve(context) if not context.cacheKey
-    log.debug "getCachedResponse"
-    cache.tryGetCachedResponse(context.cacheKey)
-    .then (cachedResponse) ->
-      context.cachedResponse = cachedResponse
-      resolve(context)
-    .catch reject
+  # nothing to do if there is no cache key
+  return context if not context.cacheKey
+  log.debug "getCachedResponse"
+  cache.tryGetCachedResponse(context.cacheKey)
+  .then (cachedResponse) ->
+    context.cachedResponse = cachedResponse
+    return context
 
 getCacheLockIfNoCachedResponseExists = (context) ->
-  new Promise (resolve, reject) ->
-    return resolve(context) if context.cachedResponse # we have a cached, response no need to lock anything
-    log.debug "getCacheLockIfNoCachedResponseExists"
-    cache.promiseToGetCacheLock(context.cacheKey)
-    .then (lockDescriptor) ->
-      context.cacheLockDescriptor = lockDescriptor
-      resolve(context)
-    .catch reject
+  return context if context.cachedResponse # we have a cached, response no need to lock anything
+  log.debug "getCacheLockIfNoCachedResponseExists"
+  cache.promiseToGetCacheLock(context.cacheKey)
+  .then (lockDescriptor) ->
+    context.cacheLockDescriptor = lockDescriptor
+    return context
 
 getAndCacheResponseIfNeeded = (context) ->
   new Promise (resolve, reject) ->
@@ -201,7 +196,7 @@ serveCachedResponse = (context) ->
   cachedResponse.headers['x-cache-serve-duration-ms'] = serveDuration
   context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
   cachedResponse.body.pipe(context.response)
-  context.response.on 'finish', () -> log.info "#{context.request.url} cached response served in #{serveDuration}ms"
+  context.response.once 'finish', () -> log.info "#{context.request.url} cached response served in #{serveDuration}ms"
   return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->
@@ -251,9 +246,9 @@ server = http.createServer (request, response) ->
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse
     .tap -> log.debug("request handling complete")
+    .catch RequestHandlingComplete, (e) ->
+      log.debug "request handling completed in catch"
     .catch (e) ->
-      log.debug "request handling completed in catch" if e.requestHandlingComplete
-      return if e.requestHandlingComplete
       log.error "error processing request"
       log.error e.stack
       response.writeHead 500, {}
