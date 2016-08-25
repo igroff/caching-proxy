@@ -60,6 +60,11 @@
     "maxAgeInMilliseconds": 5000
   },
   {
+    "route": "/now",
+    "target": "http://jobs.glgresearch.com/PUBLIC",
+    "maxAgeInMilliseconds": 5000
+  },
+  {
     "route": "*",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 0

@@ -6,8 +6,8 @@ idGenerator = 0
 
 class Context extends require('stream').Readable
   constructor: (req) ->
-      @url = req.url
-      @queryString = req.url.split('?')[1]
+      [@url, @queryString] = req.url.split('?')
+      log.debug "req.url: #{req.url} url: #{@url} qs: #{@queryString}"
       @method = req.method
       @headers = req.headers
       @rawHeaders = req.rawHeaders
@@ -17,7 +17,18 @@ class Context extends require('stream').Readable
       @socket = req.socket
       @cacheLockDescriptor = null
       @contextId = ++idGenerator
+      @isDebugRequest = false
       super({})
+      return unless @queryString
+      # we set up our debug flag if it was requests, AND we clear it
+      # from the querystring so that it doesn't influence our cache key
+      if @queryString.indexOf('&debug=true') isnt -1
+        @queryString = @queryString.replace(/&debug=true/g, '')
+        @isDebugRequest = true
+      else if @queryString.indexOf('debug=true') isnt -1
+        @queryString = @queryString.replace(/debug=true/g, '')
+        @isDebugRequest = true
+        
   toString: => JSON.stringify(url: @url, method: @method, config: @config, body: @body)
   _read: (size) =>
     @.push(this.requestBody)
@@ -28,7 +39,6 @@ buildContext = (request, response) ->
     baseContext = new Context(request)
     baseContext.request = request
     baseContext.response = response
-    baseContext.url = request.url
     resolve(baseContext)
 
 module.exports = buildContext

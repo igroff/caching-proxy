@@ -38,6 +38,13 @@ noteStartTime = (context) ->
   context.requestStartTime = new Date()
   return context
 
+setDebugIfAskedFor = (context) ->
+  log.debug "setDebugIfAskedFor #{context.queryString?.indexOf('debug=true')}"
+  return context unless context.isDebugRequest
+  context.originalDebugValue = process.env.DEBUG
+  process.env.DEBUG = true
+  return context
+
 determineIfAdminRequest = (context) ->
   log.debug "determineIfAdminRequest"
   adminRequestInfo = admin.getAdminRequestInfo(context.request)
@@ -98,7 +105,8 @@ buildCacheKey = (context) ->
   return context if context.targetConfig?.maxAgeInMilliseconds < 1
   log.debug "buildCacheKey"
   # build a cache key
-  cacheKeyData = "#{context.request.method}-#{context.url}-#{context.requestBody or ""}"
+  cacheKeyData = "#{context.method}-#{context.url}-#{context.queryString or ''}-#{context.requestBody or ""}"
+  log.debug "request cache key data: #{cacheKeyData}"
   context.cacheKey = crypto.createHash('md5').update(cacheKeyData).digest("hex")
   log.debug "request cache key: #{context.cacheKey}"
   return context
@@ -217,6 +225,12 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
     resolve(context)
 
+resetDebugIfAskedFor = (context) ->
+  log.debug "resetDebugIfAskedFor"
+  return context unless context.isDebugRequest
+  process.env.DEBUG = context.originalDebugValue
+  return context
+
 server = http.createServer (request, response) ->
   log.debug "#{request.method} #{request.url}"
   getContextThatUnlocksCacheOnDispose = () ->
@@ -231,6 +245,7 @@ server = http.createServer (request, response) ->
   requestPipeline = (context) ->
     Promise.resolve(context)
     .then noteStartTime
+    .then setDebugIfAskedFor
     .then determineIfAdminRequest
     .then getTargetConfigForRequest
     .then determineIfProxiedOnlyOrCached
@@ -245,6 +260,7 @@ server = http.createServer (request, response) ->
     .then getCacheLockIfCacheIsExpired
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse
+    .then resetDebugIfAskedFor
     .tap -> log.debug("request handling complete")
     .catch RequestHandlingComplete, (e) ->
       log.debug "request handling completed in catch"
