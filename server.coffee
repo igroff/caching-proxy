@@ -25,8 +25,7 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
   # In the case of caching being desired a cacheKey will be present otherwise
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   #
-  # We're only going to cache responses with a http status of 200
-  if request.cacheKey && proxyRes.statusCode is 200
+  if request.cacheKey
     cache.cacheResponse(request.cacheKey, proxyRes)
 
 class RequestHandlingComplete extends Error

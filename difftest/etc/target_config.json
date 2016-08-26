@@ -65,6 +65,11 @@
     "maxAgeInMilliseconds": 5000
   },
   {
+    "route": "/price-service-v5",
+    "target": "http://services-internal.glgresearch.com",
+    "maxAgeInMilliseconds": 5000
+  },
+  {
     "route": "*",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 0
