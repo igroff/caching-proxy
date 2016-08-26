@@ -39,9 +39,10 @@ noteStartTime = (context) ->
   return context
 
 setDebugIfAskedFor = (context) ->
-  log.debug "setDebugIfAskedFor #{context.queryString?.indexOf('debug=true')}"
+  log.debug "setDebugIfAskedFor"
   return context unless context.isDebugRequest
   context.originalDebugValue = process.env.DEBUG
+  log.debug "isDebugRequest: #{context.isDebugRequest}"
   process.env.DEBUG = true
   return context
 

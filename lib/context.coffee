@@ -29,6 +29,9 @@ class Context extends require('stream').Readable
       else if @queryString.indexOf('debug=true&') isnt -1
         @queryString = @queryString.replace(/debug=true&/g, '')
         @isDebugRequest = true
+      else if @queryString.indexOf('debug=true') isnt -1
+        @queryString = @queryString.replace(/debug=true/g, '')
+        @isDebugRequest = true
         
   toString: => JSON.stringify(url: @url, method: @method, config: @config, body: @body)
   _read: (size) =>
