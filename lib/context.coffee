@@ -6,7 +6,8 @@ idGenerator = 0
 
 class Context extends require('stream').Readable
   constructor: (req) ->
-      [@url, @queryString] = req.url.split('?')
+      @url = req.url
+      [@pathOnly, @queryString] = req.url.split('?')
       log.debug "req.url: #{req.url} url: #{@url} qs: #{@queryString}"
       @method = req.method
       @headers = req.headers
@@ -25,8 +26,8 @@ class Context extends require('stream').Readable
       if @queryString.indexOf('&debug=true') isnt -1
         @queryString = @queryString.replace(/&debug=true/g, '')
         @isDebugRequest = true
-      else if @queryString.indexOf('debug=true') isnt -1
-        @queryString = @queryString.replace(/debug=true/g, '')
+      else if @queryString.indexOf('debug=true&') isnt -1
+        @queryString = @queryString.replace(/debug=true&/g, '')
         @isDebugRequest = true
         
   toString: => JSON.stringify(url: @url, method: @method, config: @config, body: @body)

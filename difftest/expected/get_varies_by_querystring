@@ -1,4 +1,4 @@
 > GET /howdy.html?from=thequerystring HTTP/1.1
-< x-cache-key: 2774ccfab3f0a9af08336fac19fe39db
+< x-cache-key: e856913d3601a459bd0265cfcd956571
 > GET /howdy.html?from=thequerystring2 HTTP/1.1
-< x-cache-key: 95fd46894a13402b65316cfb2bb7469a
+< x-cache-key: 94b7cdcd69dde2f4aeb768d7bb886308

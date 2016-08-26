@@ -52,6 +52,7 @@ determineIfAdminRequest = (context) ->
     context.isAdminRequest = true
     context.adminCommand = adminRequestInfo[0]
     context.url = adminRequestInfo[1]
+    [context.pathOnly, context.queryString] = context.url.split('?')
     log.debug "we have an admin request command '#{context.adminCommand}' and url '#{context.url}'"
   return context
 
@@ -105,7 +106,7 @@ buildCacheKey = (context) ->
   return context if context.targetConfig?.maxAgeInMilliseconds < 1
   log.debug "buildCacheKey"
   # build a cache key
-  cacheKeyData = "#{context.method}-#{context.url}-#{context.queryString or ''}-#{context.requestBody or ""}"
+  cacheKeyData = "#{context.method}-#{context.pathOnly}-#{context.queryString or ''}-#{context.requestBody or ""}"
   log.debug "request cache key data: #{cacheKeyData}"
   context.cacheKey = crypto.createHash('md5').update(cacheKeyData).digest("hex")
   log.debug "request cache key: #{context.cacheKey}"

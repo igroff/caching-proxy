@@ -1,4 +1,4 @@
-before cache clear the file /var/folders/ql/3c6wr1797bvg8jp6bdjwwjvw0000gn/T/68f42a63f6ad9a3124a1ae33a1f889c8 exists as expected
+before cache clear the file /var/folders/ql/3c6wr1797bvg8jp6bdjwwjvw0000gn/T/0e93bb7153069f544fdce41ba9d22b93 exists as expected
 {"status":"ok","message":"cache entry removed"}
-/var/folders/ql/3c6wr1797bvg8jp6bdjwwjvw0000gn/T/68f42a63f6ad9a3124a1ae33a1f889c8
-the cache file /var/folders/ql/3c6wr1797bvg8jp6bdjwwjvw0000gn/T/68f42a63f6ad9a3124a1ae33a1f889c8 does not exist as expected
+/var/folders/ql/3c6wr1797bvg8jp6bdjwwjvw0000gn/T/0e93bb7153069f544fdce41ba9d22b93
+the cache file /var/folders/ql/3c6wr1797bvg8jp6bdjwwjvw0000gn/T/0e93bb7153069f544fdce41ba9d22b93 does not exist as expected

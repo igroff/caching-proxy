@@ -1,0 +1,6 @@
+> GET /howdy.html?from=thequerystring HTTP/1.1
+< x-cache-key: e856913d3601a459bd0265cfcd956571
+> GET /howdy.html?from=thequerystring&debug=true HTTP/1.1
+< x-cache-key: e856913d3601a459bd0265cfcd956571
+> GET /howdy.html?debug=true&from=thequerystring HTTP/1.1
+< x-cache-key: e856913d3601a459bd0265cfcd956571
