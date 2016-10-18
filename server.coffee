@@ -13,7 +13,7 @@ cache         = require './lib/cache.coffee'
 admin         = require './lib/admin_handlers.coffee'
 buildContext  = require './lib/context.coffee'
  
-proxy = httpProxy.createProxyServer({})
+proxy = httpProxy.createProxyServer({ws: true})
 
 # this event is raised when we get a response from the proxied service
 # it is here that we will cache responses, while it'd be awesome to do this
@@ -90,7 +90,7 @@ handleProxyOnlyRequest = (context) ->
     context.response.once 'finish', () ->
       #This one is a bit odd, because if we proxy the request, we're done that's all there is to do
       reject new RequestHandlingComplete()
-    proxy.web(context.request, context.response, { target: context.targetConfig.target }, proxyError)
+    proxy.web(context.request, context.response, { target: context.targetConfig.target, headers: context.targetConfig.headers}, proxyError)
 
 readRequestBody = (context) ->
   new Promise (resolve, reject) ->
@@ -166,7 +166,7 @@ getAndCacheResponseIfNeeded = (context) ->
       handleProxyError = (e) ->
         log.error "error proxying cache rebuild request to #{context.targetConfig}\n%s", e
         reject(e)
-      proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
+      proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target, headers: context.targetConfig.headers }, handleProxyError)
     else
       log.debug "didn't get the cache lock for #{context.cacheKey}, waiting for in progress rebuild contextId #{context.contextId}"
 
@@ -223,7 +223,8 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       # cached resopnse will have already been served, we do need to keep our pipeline going as expected
       # because we have a 'disposable' context that we use to manage this whole flow
       cache.events.once context.cacheKey, () -> resolve(context)
-      return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target }, handleProxyError)
+      require('util').log(context.targetConfig)
+      return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target, headers: context.targetConfig.headers}, handleProxyError)
     resolve(context)
 
 resetDebugIfAskedFor = (context) ->
@@ -275,4 +276,19 @@ server = http.createServer (request, response) ->
 log.info "listening on port %s", config.listenPort
 log.info "configuration: %j", config
 log.debug "debug logging enabled"
+
+proxyWebsocket = (context) ->
+  proxy.ws(context.request, context.socket, context.head, { target: context.targetConfig.target, xfwd: true, headers: context.targetConfig.headers})
+  return context
+# websockets can be proxied, but they are not cached as that would be a whole giant ball of nasty
+# however they are configued similarly to 'normal' HTTP targets
+server.on 'upgrade', (request, socket, head) ->
+  buildContext(request, null)
+  .then (context) ->
+    context.socket = socket
+    context.head = head
+    context
+  .then getTargetConfigForRequest
+  .then proxyWebsocket
+
 server.listen(config.listenPort)

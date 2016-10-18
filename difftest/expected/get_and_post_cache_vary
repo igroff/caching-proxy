@@ -1,9 +1,9 @@
 > GET /mysql/test/mysql_echo.dot?from=thequerystring HTTP/1.1
 < x-cache-key: a27ee92b4601d7994a08940a1e1fffd3
-[{"everything":" from=thequerystring  accept=*/*   host=localhost:8080  connection=close "}
+[{"everything":" from=thequerystring  accept=*/*   host=localhost:8080  a_valid_bitmask=1  connection=close "}
 > POST /mysql/test/mysql_echo.dot?from=thequerystring HTTP/1.1
 < x-cache-key: bd03e8964113b8f5754c0627f917a17f
-[{"everything":" from=thequerystring  accept=*/*   host=localhost:8080  connection=close  content-length=0 "}
+[{"everything":" from=thequerystring  accept=*/*   host=localhost:8080  a_valid_bitmask=1  connection=close  content-length=0 "}
 > POST /mysql/test/mysql_echo.dot?from=thequerystring HTTP/1.1
 < x-cache-key: 4be751868e2ef39fb98957ea83d4ca2f
-[{"everything":" andfrom=thebody  from=thequerystring  content-type=application/x-www-form-urlencoded  content-length=15  accept=*/*   host=localhost:8080  connection=close "}
+[{"everything":" andfrom=thebody  from=thequerystring  content-type=application/x-www-form-urlencoded  content-length=15  accept=*/*   host=localhost:8080  a_valid_bitmask=1  connection=close "}

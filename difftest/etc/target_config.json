@@ -47,7 +47,10 @@
   {
     "route": "/mysql/test/mysql_echo.dot",
     "target": "http://localhost:9090/epiquery1/",
-    "maxAgeInMilliseconds": 5000
+    "maxAgeInMilliseconds": 5000,
+    "headers": {
+      "a_valid_bitmask": 1
+    }
   },
   {
     "route": "/howdy.html",
