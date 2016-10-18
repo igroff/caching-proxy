@@ -223,7 +223,6 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       # cached resopnse will have already been served, we do need to keep our pipeline going as expected
       # because we have a 'disposable' context that we use to manage this whole flow
       cache.events.once context.cacheKey, () -> resolve(context)
-      require('util').log(context.targetConfig)
       return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target, headers: context.targetConfig.headers}, handleProxyError)
     resolve(context)
 
