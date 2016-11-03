@@ -12,6 +12,7 @@ config        = require './lib/config.coffee'
 cache         = require './lib/cache.coffee'
 admin         = require './lib/admin_handlers.coffee'
 buildContext  = require './lib/context.coffee'
+mutils        = require './lib/utils.coffee'
  
 proxy = httpProxy.createProxyServer({ws: true})
 
@@ -173,13 +174,19 @@ getAndCacheResponseIfNeeded = (context) ->
 
 determineIfCacheIsExpired = (context) ->
   log.debug "determineIfCacheIsExpired"
+  # if there is no cache expiration config, there is nothing to do
+  return context if not context.targetConfig.maxAgeInMilliseconds and not context.targetConfig.absoluteExpirationTimeInMillisecondsSinceMidnight
   cachedResponse = context.cachedResponse
   now = new Date().getTime()
-  # if our cached response is older than is configured for the max age, then we'll
-  # queue up a rebuild request BUT still serve the cached response
-  log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{context.targetConfig.maxAgeInMilliseconds}"
-  context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
-  return context
+  if context.targetConfig.maxAgeInMilliseconds
+    # if our cached response is older than is configured for the max age, then we'll
+    # queue up a rebuild request BUT still serve the cached response
+    log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{context.targetConfig.maxAgeInMilliseconds}"
+    context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+    return context
+  if context.targetConfig.absoluteExpirationTimeInMillisecondsSinceMidnight
+    context.cachedResponseIsExpired = (now - mutils.getStartOfDay().getTime()) > context.absoluteExpirationTimeInMillisecondsSinceMidnight
+    return context
 
 getCacheLockIfCacheIsExpired = (context) ->
   new Promise (resolve, reject) ->
