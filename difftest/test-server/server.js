@@ -30,7 +30,7 @@ app.all("/echo/*", function (request, response) {
 });
 
 
-listenPort = process.env.PORT || 3000;
+listenPort = process.env.PORT || 8000;
 log.info("starting app " + process.env.APP_NAME);
 log.info("listening on " + listenPort);
 app.listen(listenPort);

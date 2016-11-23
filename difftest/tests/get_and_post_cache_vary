@@ -8,4 +8,4 @@ curl -v 'http://localhost:8080/mysql/test/mysql_echo.dot?from=thequerystring' 2>
 # same thing only as a post
 curl -v -X POST 'http://localhost:8080/mysql/test/mysql_echo.dot?from=thequerystring' 2>&1 | egrep 'thequerystring|x-cache-key' |  sed -E -e 's/user-agent=curl\/[0-9]\.[0-9]{1,2}\.[0-9]{1,2} //g'
 # a post with the same URL, along with some body data, all of these should vary the cache key
-curl -v 'http://localhost:8080/mysql/test/mysql_echo.dot?from=thequerystring' --data 'andfrom=thebody' 2>&1 | egrep 'thequerystring|x-cache-key' |  sed -E -e 's/user-agent=curl\/[0-9]\.[0-9]{1,2}\.[0-9]{1,2} //g'
+curl -v 'http://localhost:8080/mysql/test/mysql_echo.dot?from=thequerystring' --data 'andfrom=thebody' 2>&1 | egrep 'thequerystring|x-cache-key|thebody' |  sed -E -e 's/user-agent=curl\/[0-9]\.[0-9]{1,2}\.[0-9]{1,2} //g'
