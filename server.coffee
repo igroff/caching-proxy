@@ -183,16 +183,19 @@ getAndCacheResponseIfNeeded = (context) ->
     else
       log.debug "didn't get the cache lock for %s, waiting for in progress rebuild contextId %d", context.cacheKey, context.contextId
 
-
 determineIfCacheIsExpired = (context) ->
   log.debug "determineIfCacheIsExpired"
   cachedResponse = context.cachedResponse
   return context unless cachedResponse
   now = new Date().getTime()
-  # if our cached response is older than is configured for the max age, then we'll
-  # queue up a rebuild request BUT still serve the cached response
-  log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, now, now - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
-  context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+  if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+    context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    context.cachedResponseIsExpired = (now - context.startOfDay) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+  else
+    # if our cached response is older than is configured for the max age, then we'll
+    # queue up a rebuild request BUT still serve the cached response
+    log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, now, now - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
+    context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
   return context
 
 getCacheLockIfCacheIsExpired = (context) ->
