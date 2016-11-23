@@ -190,7 +190,9 @@ determineIfCacheIsExpired = (context) ->
   now = new Date().getTime()
   if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
     context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    context.cachedResponseIsExpired = (now - context.startOfDay) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+    # if NOW is more than the configured value of milliesconds past the start of the day
+    # AND we've not already cached a response for today, then we'll consider the cache expired
+    context.cachedResponseIsExpired = ((now - context.startOfDay) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.startOfDay)
   else
     # if our cached response is older than is configured for the max age, then we'll
     # queue up a rebuild request BUT still serve the cached response
