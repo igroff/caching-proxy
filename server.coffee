@@ -127,7 +127,20 @@ getCachedResponse = (context) ->
   cache.tryGetCachedResponse(context.cacheKey)
   .then (cachedResponse) ->
     context.cachedResponse = cachedResponse
+    
     return context
+
+dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
+  # here's the deal, if we want a cached response to NEVER be served IF stale, the target config
+  # will be configued with a truthy doNotServeStaleCache, so in that case we'll just flat dump any
+  # cached response we may have IF it is expired we do it here because we will want to get the cache
+  # lock ( if no one else has it ) in this case, as we'll be rebuilding it
+  if context.targetConfig.doNotServeStaleCache and context.cachedResponseIsExpired
+    log.debug "cached response expired, and doNotServeStaleCache is set"
+    context.cachedResponse = undefined
+    # and since we've just erased our cached response, we need to clear this
+    context.cachedResponseIsExpired = false
+  return context
 
 getCacheLockIfNoCachedResponseExists = (context) ->
   return context if context.cachedResponse # we have a cached, response no need to lock anything
@@ -174,6 +187,7 @@ getAndCacheResponseIfNeeded = (context) ->
 determineIfCacheIsExpired = (context) ->
   log.debug "determineIfCacheIsExpired"
   cachedResponse = context.cachedResponse
+  return context unless cachedResponse
   now = new Date().getTime()
   # if our cached response is older than is configured for the max age, then we'll
   # queue up a rebuild request BUT still serve the cached response
@@ -234,6 +248,7 @@ resetDebugIfAskedFor = (context) ->
 
 server = http.createServer (request, response) ->
   log.debug "#{request.method} #{request.url}"
+  log.debug "****************************************************************************"
   getContextThatUnlocksCacheOnDispose = () ->
     buildContext(request, response).disposer (context, promise) ->
       log.debug "disposing of request #{context.contextId}"
@@ -255,14 +270,16 @@ server = http.createServer (request, response) ->
     .then buildCacheKey
     .then handleAdminRequest
     .then getCachedResponse
+    .then determineIfCacheIsExpired
+    .then dumpCachedResponseIfStaleResponseIsNotAllowed
     .then getCacheLockIfNoCachedResponseExists
     .then getAndCacheResponseIfNeeded
-    .then determineIfCacheIsExpired
     .then getCacheLockIfCacheIsExpired
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse
     .then resetDebugIfAskedFor
     .tap -> log.debug("request handling complete")
+    .tap -> log.debug "****************************************************************************"
     .catch RequestHandlingComplete, (e) ->
       log.debug "request handling completed in catch"
     .catch (e) ->
