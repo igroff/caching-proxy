@@ -3,6 +3,7 @@ fs      = Promise.promisifyAll(require('fs'))
 log     = require 'simplog'
 _       = require 'lodash'
 hogan   = require 'hogan.js'
+url     = require 'url'
 
 config =
   listenPort: process.env.PORT || 8080
@@ -18,7 +19,6 @@ if not config.targetConfigPath
   process.exit 1
 log.info "loading target config: #{config.targetConfigPath}"
 targetConfigData = fs.readFileSync(config.targetConfigPath, 'utf8')
-log.info "using target config:\n%s", targetConfigData
 
 
 config.setTargetConfig = (targetConfig) ->
@@ -39,9 +39,14 @@ config.setTargetConfig = (targetConfig) ->
     else
       target.regexp = new RegExp('^' + target.route.replace(/\//g, '\\/'))
 
+  targetSendPathDefault = (target) ->
+    if target.sendPathWithProxiedRequest is undefined
+      target.sendPathWithProxiedRequest = true
+
   throw new Error "target config must be an array of target configuration objects" unless _.isArray targetList
   targetList.forEach(targetValidator)
   targetList.forEach(targetRegexBuilder)
+  targetList.forEach(targetSendPathDefault)
   config.targets = targetList
 
 config.findMatchingTarget = (url) ->
@@ -64,4 +69,5 @@ config.saveTargetConfig = () ->
   fs.writeFileAsync(config.targetConfigPath, JSON.stringify(targetConfig, null, 2), {flag: 'w+'})
 
 config.setTargetConfig(targetConfigData)
+log.info "using target config:\n%j", config.targets
 module.exports = config

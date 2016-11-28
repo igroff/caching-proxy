@@ -69,6 +69,17 @@
     "maxAgeInMilliseconds": 10000
   },
   {
+    "route": "/now/wouldnt/work-if-path-was-sent",
+    "target": "http://localhost:8000/now",
+    "maxAgeInMilliseconds": 5000,
+    "sendPathWithProxiedRequest": false
+  },
+  {
+    "route": "/now/will-not-work",
+    "target": "http://localhost:8000/now",
+    "maxAgeInMilliseconds": 5000
+  },
+  {
     "route": "/now",
     "target": "http://localhost:8000/",
     "maxAgeInMilliseconds": 5000

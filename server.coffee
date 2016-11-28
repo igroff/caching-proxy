@@ -71,7 +71,14 @@ getTargetConfigForRequest = (context) ->
     # if there was no config in the header, then we'll go ahead and load the matching config
     if not context.targetConfig
       context.targetConfig = config.findMatchingTarget(context.url)
+    log.debug "target config: %j", context.targetConfig
     return context
+
+stripPathIfRequested = (context) ->
+  return context if context.targetConfig.sendPathWithProxiedRequest
+  log.debug "stripPathIfRequested"
+  context.url = ""
+  return context
 
 determineIfProxiedOnlyOrCached = (context) ->
   log.debug "determineIfProxiedOnlyOrCached"
@@ -272,6 +279,7 @@ server = http.createServer (request, response) ->
     .then setDebugIfAskedFor
     .then determineIfAdminRequest
     .then getTargetConfigForRequest
+    .then stripPathIfRequested
     .then determineIfProxiedOnlyOrCached
     .then handleProxyOnlyRequest
     .then readRequestBody
