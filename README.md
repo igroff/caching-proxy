@@ -42,18 +42,13 @@ configuration object:
     "maxAgeInMilliseconds": 10000
   },
   {
-    "route": "/bidb/sys/logShippedReplicaStatus.mustache.*",
-    "target": "http://services-internal.glgresearch.com/epiops",
-    "maxAgeInMilliseconds": 5000
+    "route": "/expire-at-absolute-time-of-day",
+    "target": "http://localhost:8000/now",
+    "dayRelativeExpirationTimeInMilliseconds": 300000   
   },
   {
     "route": "/now",
-    "target": "http://jobs.glgresearch.com/PUBLIC",
-    "maxAgeInMilliseconds": 5000
-  },
-  {
-    "route": "/price-service-v5",
-    "target": "http://services-internal.glgresearch.com",
+    "target": "http://localhost:8000/now",
     "maxAgeInMilliseconds": 5000
   },
   {
@@ -63,3 +58,5 @@ configuration object:
   }
 ]
 ````
+
+#### A Target Configuration
