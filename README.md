@@ -25,8 +25,8 @@ although proxying is.
 ### Configuration
 
 Configuration of the proxy is managed via a single array of Javascript Objects and is read either 
-from a configuration file at start or from an appropriate admin request at runtime. Below is a sample
-configuration object:
+from a configuration file ( stored as valid JSON ) at start or from an appropriate admin request
+at runtime. Below is a sample configuration object:
 
 ````
 [
@@ -60,3 +60,18 @@ configuration object:
 ````
 
 #### A Target Configuration
+
+A single target config has a couple manditory configuration elements and a few optional ones.
+
+* route - This is essentially just a regular expression, with some small amount of magic. The expression
+  is treated as if you started it with a '^' and allows the specification of a single asterisk as
+  a shortcut for any match at all. This value is what is tested against the inbound request path 
+  if it matches, the target config is used to define behavior of the response.
+* target - The fully qualified URL of the destination to which the request will be proxied.
+* maxAgeInMilliseconds - The maximum duration (in milliseconds )after the creation of a cached response
+  it will be considered valid. If this value is set to any number less than 1, no caching is performed and 
+  the request is simply proxied through to the target.
+* serveStaleCache (optional) - This is an optional boolean configuration value defaulting to true.
+* dayRelativeExpirationTimeInMilliseconds - The ABSOLUTE time in milleseconds AFTER 12:00 AM that a cached item
+  will expire. For example if you want a cached response to be refreshed daily at 1:00 AM you would set this
+  value to 3600000, which is the number of milliseconds past 12:00 AM 1:00AM 'is'.

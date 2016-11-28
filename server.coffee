@@ -132,11 +132,11 @@ getCachedResponse = (context) ->
 
 dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
   # here's the deal, if we want a cached response to NEVER be served IF stale, the target config
-  # will be configued with a truthy doNotServeStaleCache, so in that case we'll just flat dump any
+  # will be configued with a truthy serveStaleCache, so in that case we'll just flat dump any
   # cached response we may have IF it is expired we do it here before we get the cache lock
   # because we will need to acquire that ( if no one else has it ) in this case, as we'll be rebuilding it
-  if context.targetConfig.doNotServeStaleCache and context.cachedResponseIsExpired
-    log.debug "cached response expired, and doNotServeStaleCache is set"
+  if not context.targetConfig.serveStaleCache and context.cachedResponseIsExpired
+    log.debug "cached response expired, and our config specifies no serving stale cache items"
     context.cachedResponse = undefined
     # and since we've just erased our cached response, we need to clear this
     context.cachedResponseIsExpired = false
@@ -187,6 +187,10 @@ determineIfCacheIsExpired = (context) ->
   log.debug "determineIfCacheIsExpired"
   cachedResponse = context.cachedResponse
   return context unless cachedResponse
+  # we start with the assumption that the cached response is not expired, and we prove otherwise
+  # this err's on the side of serving the cached response as, if we have a cached response, the
+  # expectation is that it will be served
+  context.cachedResponseIsExpired = false
   now = new Date().getTime()
   if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
     context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())

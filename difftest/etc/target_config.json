@@ -61,7 +61,7 @@
     "route": "/short-lived",
     "target": "http://localhost:8000/now",
     "maxAgeInMilliseconds": 10000,
-    "doNotServeStaleCache": true
+    "serveStaleCache": false
   },
   {
     "route": "/short-lived-allow-stale",
@@ -69,18 +69,8 @@
     "maxAgeInMilliseconds": 10000
   },
   {
-    "route": "/bidb/sys/logShippedReplicaStatus.mustache.*",
-    "target": "http://services-internal.glgresearch.com/epiops",
-    "maxAgeInMilliseconds": 5000
-  },
-  {
     "route": "/now",
-    "target": "http://jobs.glgresearch.com/PUBLIC",
-    "maxAgeInMilliseconds": 5000
-  },
-  {
-    "route": "/price-service-v5",
-    "target": "http://services-internal.glgresearch.com",
+    "target": "http://localhost:8000/",
     "maxAgeInMilliseconds": 5000
   },
   {
