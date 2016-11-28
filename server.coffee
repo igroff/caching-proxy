@@ -133,8 +133,8 @@ getCachedResponse = (context) ->
 dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
   # here's the deal, if we want a cached response to NEVER be served IF stale, the target config
   # will be configued with a truthy doNotServeStaleCache, so in that case we'll just flat dump any
-  # cached response we may have IF it is expired we do it here because we will want to get the cache
-  # lock ( if no one else has it ) in this case, as we'll be rebuilding it
+  # cached response we may have IF it is expired we do it here before we get the cache lock
+  # because we will need to acquire that ( if no one else has it ) in this case, as we'll be rebuilding it
   if context.targetConfig.doNotServeStaleCache and context.cachedResponseIsExpired
     log.debug "cached response expired, and doNotServeStaleCache is set"
     context.cachedResponse = undefined
