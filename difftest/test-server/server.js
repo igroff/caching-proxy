@@ -29,6 +29,10 @@ app.all("/echo/*", function (request, response) {
   response.send(JSON.stringify(respondWithThis, null, 2));
 });
 
+app.all("/now/*", function(request, response){
+  response.status(200).send(new Date().getTime().toString());
+});
+
 
 listenPort = process.env.PORT || 8000;
 log.info("starting app " + process.env.APP_NAME);

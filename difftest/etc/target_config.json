@@ -58,6 +58,17 @@
     "maxAgeInMilliseconds": 25
   },
   {
+    "route": "/short-lived",
+    "target": "http://localhost:8000/now",
+    "maxAgeInMilliseconds": 10000,
+    "doNotServeStaleCache": true
+  },
+  {
+    "route": "/short-lived-allow-stale",
+    "target": "http://localhost:8000/now",
+    "maxAgeInMilliseconds": 10000
+  },
+  {
     "route": "/bidb/sys/logShippedReplicaStatus.mustache.*",
     "target": "http://services-internal.glgresearch.com/epiops",
     "maxAgeInMilliseconds": 5000
