@@ -1,0 +1,23 @@
+#! /usr/bin/env bash
+# vi: ft=sh
+set -e
+# make sure we have nothing hanging around
+curl -s "http://localhost:8080/____/delete/for-testing-absolute-expiration"
+#just to format our output
+echo
+# get it once to cache it
+FIRST_RESPONSE=$(curl -s "http://localhost:8080/for-testing-absolute-expiration")
+# and again for comparison
+SECOND_RESPONSE=$(curl -s "http://localhost:8080/for-testing-absolute-expiration")
+
+[ -z "${FIRST_RESPONSE:-}" ] && echo "looks like we got nothing for FIRST_RESPONSE" && exit 1
+[ -z "${SECOND_RESPONSE:-}" ] && echo "looks like we got nothing for SECOND_RESPONSE" && exit 1
+if [ "${FIRST_RESPONSE}" = "${SECOND_RESPONSE}" ]; then
+  echo "looks good"
+else
+  echo "something is wrong, we got"
+  echo "FIRST_RESPONSE ${FIRST_RESPONSE}"
+  echo "SECOND_RESPONSE ${SECOND_RESPONSE}"
+fi
+
+
