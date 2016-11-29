@@ -54,8 +54,9 @@
   },
   {
     "route": "/for-testing-absolute-expiration",
-    "target": "http://localhost:8000/echo",
-    "dayRelativeExpirationTimeInMilliseconds": 3600000
+    "target": "http://localhost:8000/now",
+    "dayRelativeExpirationTimeInMilliseconds": 3600000,
+    "sendPathWithProxiedRequest": false
   },
   {
     "route": "/howdy.html",

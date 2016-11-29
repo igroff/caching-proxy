@@ -110,7 +110,14 @@ readRequestBody = (context) ->
     context.request.once 'error', reject
 
 buildCacheKey = (context) ->
-  return context if context.targetConfig?.maxAgeInMilliseconds < 1
+  if context.targetConfig.maxAgeInMilliseconds
+    # if we have a maxAgeInMilliseconds and it is less than 1, there is no cache key needed
+    return context if context.targetConfig?.maxAgeInMilliseconds < 1
+
+  if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+    # if we have a dayRelativeExpirationTimeInMilliseconds and it is less than 1, there is no cache key needed
+    return context if context.targetConfig.dayRelativeExpirationTimeInMilliseconds < 1
+    
   log.debug "buildCacheKey"
   # build a cache key
   cacheKeyData = "#{context.method}-#{context.pathOnly}-#{context.queryString or ''}-#{context.requestBody or ""}"
@@ -198,12 +205,12 @@ determineIfCacheIsExpired = (context) ->
   # this err's on the side of serving the cached response as, if we have a cached response, the
   # expectation is that it will be served
   context.cachedResponseIsExpired = false
-  now = new Date().getTime()
+  now = new Date()
   if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
-    context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
     # if NOW is more than the configured value of milliesconds past the start of the day
     # AND we've not already cached a response for today, then we'll consider the cache expired
-    context.cachedResponseIsExpired = ((now - context.startOfDay) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.startOfDay)
+    context.cachedResponseIsExpired = ((now.getTime() - context.startOfDay) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.startOfDay)
   else
     # if our cached response is older than is configured for the max age, then we'll
     # queue up a rebuild request BUT still serve the cached response
@@ -241,10 +248,9 @@ serveCachedResponse = (context) ->
 triggerRebuildOfExpiredCachedResponse = (context) ->
   new Promise (resolve, reject) ->
     return reject new Error("no cached response found, cannot trigger rebuild") unless context.cachedResponse
-    log.debug "triggerRebuildOfExpiredCachedResponse"
     cachedResponse = context.cachedResponse
     if context.cachedResponseIsExpired and context.cacheLockDescriptor
-      log.debug "triggering rebuild of cache for %s", context.cacheKey
+      log.debug "triggerRebuildOfExpiredCachedResponse(%s)", context.cacheKey
       fauxProxyResponse = mocks.createResponse()
       handleProxyError = (e) ->
         log.error "error proxying cache rebuild request to %s\n%s", context.targetConfig.target, e
