@@ -45,6 +45,11 @@
     "maxAgeInMilliseconds": 0
   },
   {
+    "route": "/long_sleep/pants",
+    "target": "http://localhost:8000/long_sleep",
+    "maxAgeInMilliseconds": 0
+  },
+  {
     "route": "/mysql/test/mysql_echo.dot",
     "target": "http://localhost:8000/echo/",
     "maxAgeInMilliseconds": 5000,

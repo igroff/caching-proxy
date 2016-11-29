@@ -290,4 +290,4 @@ server.on 'upgrade', (request, socket, head) ->
   .then getTargetConfigForRequest
   .then proxyWebsocket
 
-server.listen(config.listenPort)
+server.listen(config.listenPort).setTimeout(config.requestTimeout * 1000)
