@@ -69,14 +69,14 @@
     "maxAgeInMilliseconds": 10000
   },
   {
-    "route": "/now/wouldnt/work-if-path-was-sent",
-    "target": "http://localhost:8000/now",
+    "route": "/this-will-succeede-unless-path-is-sent",
+    "target": "http://localhost:8000/echo-something/only-with-this-path",
     "maxAgeInMilliseconds": 5000,
     "sendPathWithProxiedRequest": false
   },
   {
-    "route": "/now/will-not-work",
-    "target": "http://localhost:8000/now",
+    "route": "/this-will-fail",
+    "target": "http://localhost:8000/echo-something/only-with-this-path",
     "maxAgeInMilliseconds": 5000
   },
   {

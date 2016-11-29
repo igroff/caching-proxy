@@ -29,6 +29,10 @@ app.all("/echo/*", function (request, response) {
   response.send(JSON.stringify(respondWithThis, null, 2));
 });
 
+app.all("/echo-something/only-with-this-path", function (request, response){
+  response.status(200).send("this is a response to be expected");
+});
+
 app.all("/now", function(request, response){
   response.status(200).send(new Date().getTime().toString());
 });
