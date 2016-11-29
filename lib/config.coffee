@@ -30,8 +30,12 @@ config.setTargetConfig = (targetConfig) ->
   targetValidator = (target) ->
     throw new Error "target #{JSON.stringify(target)} needs a valid route value" unless target.route
     throw new Error "target #{JSON.stringify(target)} needs a valid target value" unless target.target
-    throw new Error "target #{JSON.stringify(target)} must have a numeric value for maxAgeInMilliseconds" if isNaN(Number(target.maxAgeInMilliseconds))
-    throw new Error "target #{JSON.stringify(target)} needs a valid maxAgeInMilliseconds value" unless target.maxAgeInMilliseconds > -1
+    if target.maxAgeInMilliseconds
+      throw new Error "target #{JSON.stringify(target)} must have a numeric value for maxAgeInMilliseconds" if isNaN(Number(target.maxAgeInMilliseconds))
+      throw new Error "target #{JSON.stringify(target)} has invalid maxAgeInMilliseconds value" unless target.maxAgeInMilliseconds > -1
+    if target.dayRelativeExpirationTimeInMilliseconds
+      throw new Error "target #{JSON.stringify(target)} must have a numeric value for dayRelativeExpirationTimeInMilliseconds" if isNaN(Number(target.dayRelativeExpirationTimeInMilliseconds))
+      throw new Error "target #{JSON.stringify(target)} has invalid dayRelativeExpirationTimeInMilliseconds value"  unless target.dayRelativeExpirationTimeInMilliseconds > -1
 
   targetRegexBuilder = (target) ->
     if target.route is '*'

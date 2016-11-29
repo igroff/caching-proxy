@@ -53,6 +53,11 @@
     }
   },
   {
+    "route": "/for-testing-absolute-expiration",
+    "target": "http://localhost:8000/echo",
+    "dayRelativeExpirationTimeInMilliseconds": 3600000
+  },
+  {
     "route": "/howdy.html",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 25
