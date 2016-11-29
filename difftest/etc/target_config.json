@@ -21,12 +21,12 @@
   },
   {
     "route": "/include/body_proxy",
-    "target": "http://services-internal.glgresearch.com/monitor/",
+    "target": "http://localhost:8000/echo/",
     "maxAgeInMilliseconds": 0
   },
   {
     "route": "/include/body",
-    "target": "http://services-internal.glgresearch.com/monitor/",
+    "target": "http://localhost:8000/echo/",
     "maxAgeInMilliseconds": 5000
   },
   {
