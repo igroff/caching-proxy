@@ -29,8 +29,15 @@ app.all("/echo/*", function (request, response) {
   response.send(JSON.stringify(respondWithThis, null, 2));
 });
 
+app.all("/long_sleep/*", function(request, response){
+  function respond(){
+    response.status(200).send("DONE");
+  }
+  setTimeout(respond, 124000);
+});
+
 
 listenPort = process.env.PORT || 8000;
 log.info("starting app " + process.env.APP_NAME);
 log.info("listening on " + listenPort);
-app.listen(listenPort);
+app.listen(listenPort).setTimeout(300 * 1000);
