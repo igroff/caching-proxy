@@ -4,12 +4,32 @@ It's a reverse proxy, that caches. The purpose here is to put something (frequen
 apps that do heavy lifting such as database access suc that we can, as needed, add caching infront
 those access points to enhance performance or hide issues/outages.
 
-
 ### What's it do?
 
 It proxies requests it receives to other locations as it is configured. It proxies both HTTP and Websocket
 requests however it only offers caching of HTTP responses. No caching is available for Websocket 'requests',
 although proxying is.
+
+##### More Detail on Caching Behaviors
+
+The goal of this piece of software is to serve cached responses, and do so in such a way as to make that behavior easily configurable and manageable. To do this it allows runtime configuration updates, and defaults to serving cached responses in all situations. Here's a little more detail about this
+
+*using maxAgeInMilliseconds*
+
+The details of the configuration are below, but in the case of using this value the general behavior is as follows
+
+````
+  handleInboundRequest
+    if there is a cached response, return it to the requestor immediately
+    //continue on 'in the background'
+    if the cache is expired
+      if cache lock can be obtained
+        rebuild cache
+      else
+        // cache is already being rebuilt by another request
+        done
+````
+
 
 ### Definitions
 
@@ -70,7 +90,7 @@ A single target config has a couple manditory configuration elements and a few o
   if it matches, the target config is used to define behavior of the response.
 * target - The fully qualified URL of the destination to which the request will be proxied.
 
-##### One OR The Other Must Be Present
+##### One *OR* The Other Must Be Present
 * dayRelativeExpirationTimeInMilliseconds - The ABSOLUTE time in milleseconds AFTER 12:00 AM that a cached item
   will expire. For example if you want a cached response to be refreshed daily at 1:00 AM you would set this
   value to 3600000, which is the number of milliseconds past 12:00 AM 1:00AM 'is'.
