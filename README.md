@@ -1,6 +1,6 @@
 ### What?
 
-It's a reverse proxy, that caches. The purpose here is to put something (frequently, if not always) apps that do heavy lifting such as database access suc that we can, as needed, add caching infront those access points to enhance performance or hide issues/outages.
+It's a reverse proxy, that caches. The purpose here is to put this (frequently, if not always) 'in front of' apps that do heavy lifting such as database access such that we can, as needed, add caching infront those access points to enhance performance or hide issues/outages.
 
 ### What's it do?
 
