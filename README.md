@@ -19,7 +19,7 @@ It proxies requests it receives to other locations as it is configured. It proxi
 
 ### Caching Behaviors
 
-The goal of this piece of software is to serve cached responses, and do so in such a way as to make that behavior easily configurable and manageable. To do this it allows runtime configuration updates, and defaults to serving cached responses in all situations. Here's a little more detail about this
+The goal of this piece of software is to serve cached responses, and do so in such a way as to make that behavior easily configurable and manageable. To do this it allows runtime configuration updates, and defaults to serving cached responses in all situations. Here's a little more detail about how cached responses are served:
 
 *using maxAgeInMilliseconds with default serveStaleCache value of true*
 
