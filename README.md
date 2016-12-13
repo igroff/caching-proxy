@@ -111,7 +111,7 @@ A single target config has a few manditory configuration elements and a copule o
 
 ##### One *OR* The Other of the Following Must be Present
 * **dayRelativeExpirationTimeInMilliseconds** - The ABSOLUTE time in milleseconds AFTER 12:00 AM that a cached item will expire. For example if you want a cached response to be refreshed daily at 1:00 AM you would set this value to 3600000, which is the number of milliseconds past 12:00 AM 1:00AM 'is'.
-* **maxAgeInMilliseconds** - The maximum duration (in milliseconds )after the creation of a cached response it will be considered valid. If this value is set to any number less than 1, no caching is performed and the request is simply proxied through to the target.
+* **maxAgeInMilliseconds** - The maximum duration (in milliseconds) after the creation of a cached response it will be considered valid. If this value is set to any number less than 1, no caching is performed and the request is simply proxied through to the target.
 
 ##### Optional
 * **serveStaleCache** - This is an optional boolean configuration value defaulting to true. If set to false an expired cached value will NOT be served, instead the first request for the associated expired cached item will cause it to be recached and the 'new' response served to the caller.
