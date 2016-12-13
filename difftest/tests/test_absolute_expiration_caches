@@ -1,0 +1,63 @@
+#! /usr/bin/env bash
+# vi: ft=sh
+set -e
+# make sure we have nothing hanging around
+curl -s "http://localhost:8080/____/delete/for-testing-absolute-expiration"
+# create a configuration for this test specifying the absolute expiration time for our
+# request to be a couple seconds in the future
+RENDERED_CONFIG=$(mktemp)
+trap "[ -f ${RENDERED_CONFIG} ] && rm ${RENDERED_CONFIG} && curl -s http://localhost:8080/____/targetConfig --data-binary @difftest/etc/target_config.json -H 'Content-Type: application/json' > /dev/null 2>&1" EXIT
+TWO_SECONDS_FROM_NOW_IN_MS=$(echo "(($(date +"%s") - $(date -j -f "%Y/%m/%dT%H:%M:%S" "$(date +"%Y/%m/%dT00:00:00")" +"%s")) * 1000) + 2000" | bc)
+sed -e "s[{{ABS_EXPIRATION_TIME_IN_MS}}[${TWO_SECONDS_FROM_NOW_IN_MS}[g" ./difftest/data/target_config_template_for_absolute_expiration.json > ${RENDERED_CONFIG}
+
+# set our config to the one we just created
+curl -s http://localhost:8080/____/targetConfig --data-binary @${RENDERED_CONFIG} -H 'Content-Type: application/json' -o /dev/null
+
+#just to format our output
+echo
+# get it once to cache it
+FIRST_RESPONSE=$(curl -s "http://localhost:8080/for-testing-absolute-expiration")
+# and again for comparison
+SECOND_RESPONSE=$(curl -s "http://localhost:8080/for-testing-absolute-expiration")
+
+[ -z "${FIRST_RESPONSE:-}" ] && echo "looks like we got nothing for FIRST_RESPONSE" && exit 1
+[ -z "${SECOND_RESPONSE:-}" ] && echo "looks like we got nothing for SECOND_RESPONSE" && exit 1
+if [ ${FIRST_RESPONSE} -eq ${SECOND_RESPONSE} ]; then
+  echo "looks good"
+else
+  echo "something is wrong, we got"
+  echo "FIRST_RESPONSE ${FIRST_RESPONSE}"
+  echo "SECOND_RESPONSE ${SECOND_RESPONSE}"
+fi
+
+# now we wait for our cache to expire and get it again
+sleep 3
+
+AFTER_EXPIRATION_RESPONSE=$(curl -s "http://localhost:8080/for-testing-absolute-expiration")
+# we should now have a time in MS value greater than our previous cached responses
+if [ ${FIRST_RESPONSE} -lt ${AFTER_EXPIRATION_RESPONSE} ]; then
+  echo "response rebuilt after cache expired"
+else
+  echo "something was wrong with the response after cache expiration "
+  echo "FIRST_RESPONSE ${FIRST_RESPONSE}"
+  echo "after expiration response: ${AFTER_EXPIRATION_RESPONSE}"
+fi
+
+echo "just for sanity, we're going to check that we keep getting the same resopnse now that it is cached"
+FIRST_RESPONSE=$(curl -s "http://localhost:8080/for-testing-absolute-expiration")
+# and again for comparison
+SECOND_RESPONSE=$(curl -s "http://localhost:8080/for-testing-absolute-expiration")
+
+[ -z "${FIRST_RESPONSE:-}" ] && echo "looks like we got nothing for FIRST_RESPONSE" && exit 1
+[ -z "${SECOND_RESPONSE:-}" ] && echo "looks like we got nothing for SECOND_RESPONSE" && exit 1
+if [ ${FIRST_RESPONSE} -eq ${SECOND_RESPONSE} ]; then
+  if [ ${FIRST_RESPONSE} -eq ${AFTER_EXPIRATION_RESPONSE} ]; then
+    echo "looks good"
+  else
+    echo "we don't seem to be getting our cached response"
+  fi
+else
+  echo "something is wrong, we got"
+  echo "FIRST_RESPONSE ${FIRST_RESPONSE}"
+  echo "SECOND_RESPONSE ${SECOND_RESPONSE}"
+fi

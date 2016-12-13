@@ -21,12 +21,12 @@
   },
   {
     "route": "/include/body_proxy",
-    "target": "http://services-internal.glgresearch.com/monitor/",
+    "target": "http://localhost:8000/echo/",
     "maxAgeInMilliseconds": 0
   },
   {
     "route": "/include/body",
-    "target": "http://services-internal.glgresearch.com/monitor/",
+    "target": "http://localhost:8000/echo/",
     "maxAgeInMilliseconds": 5000
   },
   {
@@ -58,23 +58,41 @@
     }
   },
   {
+    "route": "/for-testing-absolute-expiration",
+    "target": "http://localhost:8000/now",
+    "dayRelativeExpirationTimeInMilliseconds": 3600000,
+    "sendPathWithProxiedRequest": false
+  },
+  {
     "route": "/howdy.html",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 25
   },
   {
-    "route": "/bidb/sys/logShippedReplicaStatus.mustache.*",
-    "target": "http://services-internal.glgresearch.com/epiops",
+    "route": "/short-lived",
+    "target": "http://localhost:8000/now",
+    "maxAgeInMilliseconds": 10000,
+    "serveStaleCache": false
+  },
+  {
+    "route": "/short-lived-allow-stale",
+    "target": "http://localhost:8000/now",
+    "maxAgeInMilliseconds": 10000
+  },
+  {
+    "route": "/this-will-succeede-unless-path-is-sent",
+    "target": "http://localhost:8000/echo-something/only-with-this-path",
+    "maxAgeInMilliseconds": 5000,
+    "sendPathWithProxiedRequest": false
+  },
+  {
+    "route": "/this-will-fail",
+    "target": "http://localhost:8000/echo-something/only-with-this-path",
     "maxAgeInMilliseconds": 5000
   },
   {
     "route": "/now",
-    "target": "http://jobs.glgresearch.com/PUBLIC",
-    "maxAgeInMilliseconds": 5000
-  },
-  {
-    "route": "/price-service-v5",
-    "target": "http://services-internal.glgresearch.com",
+    "target": "http://localhost:8000/",
     "maxAgeInMilliseconds": 5000
   },
   {

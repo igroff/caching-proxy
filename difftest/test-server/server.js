@@ -36,6 +36,14 @@ app.all("/long_sleep/*", function(request, response){
   setTimeout(respond, 124000);
 });
 
+app.all("/echo-something/only-with-this-path", function (request, response){
+  response.status(200).send("this is a response to be expected");
+});
+
+app.all("/now", function(request, response){
+  response.status(200).send(new Date().getTime().toString());
+});
+
 
 listenPort = process.env.PORT || 8000;
 log.info("starting app " + process.env.APP_NAME);
