@@ -76,7 +76,7 @@ at runtime. Below is a sample configuration object:
     "route": "/short-lived",
     "target": "http://localhost:8000/now",
     "maxAgeInMilliseconds": 10000,
-    "serveStaleCache": true
+    "serveStaleCache": false
   },
   {
     "route": "/short-lived-allow-stale",
