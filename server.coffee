@@ -34,7 +34,9 @@ class RequestHandlingComplete extends Error
     super()
 
 noteStartTime = (context) ->
-  context.requestStartTime = new Date()
+  now = new Date()
+  context.requestStartTime = now.getTime()
+  context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   return context
 
 setDebugIfAskedFor = (context) ->
@@ -146,9 +148,9 @@ getCachedResponse = (context) ->
 
 dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
   # here's the deal, if we want a cached response to NEVER be served IF stale, the target config
-  # will be configued with a truthy serveStaleCache, so in that case we'll just flat dump any
-  # cached response we may have IF it is expired we do it here before we get the cache lock
-  # because we will need to acquire that ( if no one else has it ) in this case, as we'll be rebuilding it
+  # will be configued with a falsey serveStaleCache, so in that case we'll just flat dump any
+  # cached response we may have IF it is expired. We do it here before we get the cache lock
+  # because we will need to acquire that ( if no one else has it ) as we'll be rebuilding it
   if not context.targetConfig.serveStaleCache and context.cachedResponseIsExpired
     log.debug "cached response expired, and our config specifies no serving stale cache items"
     context.cachedResponse = undefined
@@ -205,20 +207,18 @@ determineIfCacheIsExpired = (context) ->
   # this err's on the side of serving the cached response as, if we have a cached response, the
   # expectation is that it will be served
   context.cachedResponseIsExpired = false
-  now = new Date()
   if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
-    context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
     context.absoluteExpirationTime = context.startOfDay + context.targetConfig.dayRelativeExpirationTimeInMilliseconds
-    absoluteTimeNowInMs = now.getTime() - context.startOfDay
-    log.debug "absolute expiration time: %s, now %s", context.targetConfig.dayRelativeExpirationTimeInMilliseconds, absoluteTimeNowInMs
-    # if NOW is more than the configured value of milliesconds past the start of the day
-    # AND we've not already cached a response for today, then we'll consider the cache expired
-    context.cachedResponseIsExpired = ((absoluteTimeNowInMs) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.absoluteExpirationTime)
+    absoluteRequestTimeInMs = context.requestStartTime - context.startOfDay
+    log.debug "absolute expiration time: %s, now %s", context.targetConfig.dayRelativeExpirationTimeInMilliseconds, absoluteRequestTimeInMs
+    # if the time of our request is more than the configured value of milliesconds past the start of the day
+    # AND the cached response was created BEFORE the absolute expiration time we'll consider the cache expired
+    context.cachedResponseIsExpired = ((absoluteRequestTimeInMs) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.absoluteExpirationTime)
   else
     # if our cached response is older than is configured for the max age, then we'll
     # queue up a rebuild request BUT still serve the cached response
-    log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, now, now - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
-    context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+    log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, context.requestStartTime, context.requestStartTime - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
+    context.cachedResponseIsExpired = context.requestStartTim - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
   return context
 
 getCacheLockIfCacheIsExpired = (context) ->
@@ -241,7 +241,7 @@ serveCachedResponse = (context) ->
   cachedResponse.headers['x-cached-by-route'] = context.targetConfig.route
   cachedResponse.headers['x-cache-key'] = context.cacheKey
   cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
-  serveDuration = new Date().getTime() -  context.requestStartTime.getTime()
+  serveDuration = new Date().getTime() -  context.requestStartTime
   cachedResponse.headers['x-cache-serve-duration-ms'] = serveDuration
   context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
   cachedResponse.body.pipe(context.response)
