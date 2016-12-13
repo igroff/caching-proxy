@@ -38,7 +38,7 @@ handleInboundRequest()
 *using maxAgeInMilliseconds AND serveStaleCache == false*
 
 ````
-  handleInboundRequest{
+  handleInboundRequest
     if there is a cached response
       if the cache is NOT expired
         serve the cached response to the caller
@@ -51,7 +51,6 @@ handleInboundRequest()
           // this state will happen iff the cache is being actively rebuilt
           wait for response to be cached
           serve cached response
-  }
 ````
 
 ### Definitions
