@@ -37,6 +37,11 @@ app.all("/now", function(request, response){
   response.status(200).send(new Date().getTime().toString());
 });
 
+app.all("/now-slow", function(request, response){
+  setTimeout(function(){
+    response.status(200).send(new Date().getTime().toString());
+  }, 1000);
+});
 
 listenPort = process.env.PORT || 8000;
 log.info("starting app " + process.env.APP_NAME);

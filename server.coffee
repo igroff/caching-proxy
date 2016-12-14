@@ -218,7 +218,7 @@ determineIfCacheIsExpired = (context) ->
     # if our cached response is older than is configured for the max age, then we'll
     # queue up a rebuild request BUT still serve the cached response
     log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, context.requestStartTime, context.requestStartTime - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
-    context.cachedResponseIsExpired = context.requestStartTim - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+    context.cachedResponseIsExpired = context.requestStartTime - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
   return context
 
 getCacheLockIfCacheIsExpired = (context) ->
