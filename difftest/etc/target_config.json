@@ -64,6 +64,13 @@
     "sendPathWithProxiedRequest": false
   },
   {
+    "route": "/now-fast",
+    "target": "http://localhost:8000/now-slow",
+    "sendPathWithProxiedRequest": false,
+    "maxAgeInMilliseconds": 2000,
+    "serveStaleCache": true
+  },
+  {
     "route": "/howdy.html",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 25

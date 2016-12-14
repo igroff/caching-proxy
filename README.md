@@ -26,13 +26,20 @@ The goal of this piece of software is to serve cached responses, and do so in su
 ````
 handleInboundRequest()
   if there is a cached response, return it to the requestor immediately
-  //continue on 'in the background'
-  if the cache is expired
+    //continue on 'in the background'
+    if the cache is expired
+      if cache lock can be obtained
+        rebuild cache
+      else
+        // cache is already being rebuilt by another request
+        done
+  else if there is NO cached reponse
     if cache lock can be obtained
-      rebuild cache
+      build cache
     else
       // cache is already being rebuilt by another request
-      done
+      wait for cache to be built
+    serve cached response
 ````
 
 *using maxAgeInMilliseconds AND serveStaleCache == false*
@@ -42,8 +49,15 @@ handleInboundRequest()
     if there is a cached response
       if the cache is NOT expired
         serve the cached response to the caller
-        done
       else if the cache IS expired
+        if cache lock can be obtained
+          rebuild cache
+          serve cached response
+        else if cache lock cannot be obtained
+          // this state will happen iff the cache is being actively rebuilt
+          wait for response to be cached
+          serve cached response
+    else
         if cache lock can be obtained
           rebuild cache
           serve cached response

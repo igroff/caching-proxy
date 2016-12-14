@@ -1,0 +1,34 @@
+#! /usr/bin/env bash
+# vi: ft=sh
+# ok, so here's the deal
+# we have this target configured with a cache interval that is long enough that the first hit should
+# get cached while the second hit will be served the cache but immediately cause a rebuild THUS
+# the third and final request should get a new value so we validate that we both get a cached response
+# and an uncached resopnse as soon as it expires
+FIRST_REQUEST=$(curl -s http://localhost:8080/now-fast)
+sleep .5
+SECOND_REQUEST=$(curl -s http://localhost:8080/now-fast)
+sleep 1
+THIRD_REQUEST=$(curl -s http://localhost:8080/now-fast)
+
+if [ $FIRST_REQUEST -eq $SECOND_REQUEST ]; then
+  echo "good cached requests"
+else
+  echo "we didn't get a cached request at all"
+  echo $FIRST_REQUEST
+  echo $SECOND_REQUEST
+  echo $THIRD_REQUEST
+  exit 1
+fi
+
+if [ $THIRD_REQUEST -gt $FIRST_REQUEST ]; then
+  echo "our third request did result in a new response"
+  echo "all is good"
+else
+  echo "something went wrong with our third response"
+  echo $FIRST_REQUEST
+  echo $SECOND_REQUEST
+  echo $THIRD_REQUEST
+  exit 1
+fi
+
