@@ -238,8 +238,6 @@ getCacheLockIfCacheIsExpired = (context) ->
     .catch reject
 
 serveCachedResponse = (context) ->
-  context.response.end("pants")
-  return context
   log.debug "serveCachedResponse"
   cachedResponse = context.cachedResponse
   cachedResponse.headers['x-cached-by-route'] = context.targetConfig.route
