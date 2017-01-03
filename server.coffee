@@ -146,6 +146,28 @@ getCachedResponse = (context) ->
     
     return context
 
+determineIfCacheIsExpired = (context) ->
+  log.debug "determineIfCacheIsExpired"
+  cachedResponse = context.cachedResponse
+  return context unless cachedResponse
+  # we start with the assumption that the cached response is not expired, and we prove otherwise
+  # this err's on the side of serving the cached response as, if we have a cached response, the
+  # expectation is that it will be served
+  context.cachedResponseIsExpired = false
+  if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+    context.absoluteExpirationTime = context.startOfDay + context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+    absoluteRequestTimeInMs = context.requestStartTime - context.startOfDay
+    log.debug "absolute expiration time: %s, now %s", context.targetConfig.dayRelativeExpirationTimeInMilliseconds, absoluteRequestTimeInMs
+    # if the time of our request is more than the configured value of milliesconds past the start of the day
+    # AND the cached response was created BEFORE the absolute expiration time we'll consider the cache expired
+    context.cachedResponseIsExpired = ((absoluteRequestTimeInMs) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.absoluteExpirationTime)
+  else
+    # if our cached response is older than is configured for the max age, then we'll
+    # queue up a rebuild request BUT still serve the cached response
+    log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, context.requestStartTime, context.requestStartTime - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
+    context.cachedResponseIsExpired = context.requestStartTime - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+  return context
+
 dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
   # here's the deal, if we want a cached response to NEVER be served IF stale, the target config
   # will be configued with a falsey serveStaleCache, so in that case we'll just flat dump any
@@ -153,6 +175,8 @@ dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
   # because we will need to acquire that ( if no one else has it ) as we'll be rebuilding it
   if not context.targetConfig.serveStaleCache and context.cachedResponseIsExpired
     log.debug "cached response expired, and our config specifies no serving stale cache items"
+    # first we need to rid ourselves of the expired cached response
+    context.cachedResponse.close()
     context.cachedResponse = undefined
     # and since we've just erased our cached response, we need to clear this
     context.cachedResponseIsExpired = false
@@ -199,28 +223,6 @@ getAndCacheResponseIfNeeded = (context) ->
     else
       log.debug "didn't get the cache lock for %s, waiting for in progress rebuild contextId %d", context.cacheKey, context.contextId
 
-determineIfCacheIsExpired = (context) ->
-  log.debug "determineIfCacheIsExpired"
-  cachedResponse = context.cachedResponse
-  return context unless cachedResponse
-  # we start with the assumption that the cached response is not expired, and we prove otherwise
-  # this err's on the side of serving the cached response as, if we have a cached response, the
-  # expectation is that it will be served
-  context.cachedResponseIsExpired = false
-  if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
-    context.absoluteExpirationTime = context.startOfDay + context.targetConfig.dayRelativeExpirationTimeInMilliseconds
-    absoluteRequestTimeInMs = context.requestStartTime - context.startOfDay
-    log.debug "absolute expiration time: %s, now %s", context.targetConfig.dayRelativeExpirationTimeInMilliseconds, absoluteRequestTimeInMs
-    # if the time of our request is more than the configured value of milliesconds past the start of the day
-    # AND the cached response was created BEFORE the absolute expiration time we'll consider the cache expired
-    context.cachedResponseIsExpired = ((absoluteRequestTimeInMs) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.absoluteExpirationTime)
-  else
-    # if our cached response is older than is configured for the max age, then we'll
-    # queue up a rebuild request BUT still serve the cached response
-    log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, context.requestStartTime, context.requestStartTime - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
-    context.cachedResponseIsExpired = context.requestStartTime - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
-  return context
-
 getCacheLockIfCacheIsExpired = (context) ->
   new Promise (resolve, reject) ->
     return resolve(context) unless context.cachedResponseIsExpired # if it's not expired, we have nothing to do
@@ -245,7 +247,8 @@ serveCachedResponse = (context) ->
   cachedResponse.headers['x-cache-serve-duration-ms'] = serveDuration
   context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
   cachedResponse.body.pipe(context.response)
-  context.response.once 'finish', () -> log.info "%s cached response served in %d ms", context.request.url, serveDuration
+  context.response.once 'finish', () ->
+    log.info "%s cached response served in %d ms", context.request.url, serveDuration
   return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->

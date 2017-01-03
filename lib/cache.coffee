@@ -37,6 +37,10 @@ tryGetCachedResponse = (cacheKey) ->
     cacheResponse.headers = JSON.parse(lines[2])
     cacheResponse.createTime = stats.ctime.getTime()
     cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
+    cacheResponse.close = () ->
+       # using an undocumented method that indeed does what we need it to do
+       # which is: close the fd
+       cacheResponse.body.close()
     return cacheResponse
   .catch (e) ->
     log.debug "error opening cache file #{cacheFilePath} #{e.message}"
