@@ -48,10 +48,15 @@ config.setTargetConfig = (targetConfig) ->
     if target.sendPathWithProxiedRequest is undefined
       target.sendPathWithProxiedRequest = true
 
+  targetServeStaleCacheDefault = (target) ->
+    if target.serveStaleCache is undefined
+      target.serveStaleCache = true
+
   throw new Error "target config must be an array of target configuration objects" unless _.isArray targetList
   targetList.forEach(targetValidator)
   targetList.forEach(targetRegexBuilder)
   targetList.forEach(targetSendPathDefault)
+  targetList.forEach(targetServeStaleCacheDefault)
   config.targets = targetList
 
 config.findMatchingTarget = (url) ->
