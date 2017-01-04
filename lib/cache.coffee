@@ -39,7 +39,7 @@ tryGetCachedResponse = (cacheKey) ->
     cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
     cacheResponse.disposed = false
     cacheResponse.dispose = () ->
-      return unless not cacheResponse.disposed
+      return if cacheResponse.disposed
       cacheResponse.disposed = true
       # using an undocumented method that indeed does what we need it to do
       # which is: close the fd

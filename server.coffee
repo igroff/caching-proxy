@@ -175,7 +175,9 @@ dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
   # because we will need to acquire that ( if no one else has it ) as we'll be rebuilding it
   if not context.targetConfig.serveStaleCache and context.cachedResponseIsExpired
     log.debug "cached response expired, and our config specifies no serving stale cache items"
-    # first we need to rid ourselves of the expired cached response
+    # first we need to rid ourselves of the expired cached response, this has to happen here
+    # because we're getting rid of it so we can load another ( or create another ) cached
+    # response, which will ultimately itself be disposed of at the end of the resopnse
     context.cachedResponse.dispose()
     context.cachedResponse = undefined
     # and since we've just erased our cached response, we need to clear this
@@ -249,6 +251,7 @@ serveCachedResponse = (context) ->
   cachedResponse.body.pipe(context.response)
   context.response.once 'finish', () ->
     log.info "%s cached response served in %d ms", context.request.url, serveDuration
+    context.cachedResponse?.dispose()
   return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->
@@ -284,7 +287,6 @@ server = http.createServer (request, response) ->
         cache.promiseToReleaseCacheLock(context.cacheLockDescriptor)
       else
         log.debug "cache not locked, no unlock needed during context dispose"
-      context.cachedResponse?.dispose()
 
   requestPipeline = (context) ->
     Promise.resolve(context)
