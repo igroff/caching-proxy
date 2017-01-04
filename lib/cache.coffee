@@ -3,6 +3,7 @@ fs            = Promise.promisifyAll(require('fs'))
 path          = require 'path'
 log           = require 'simplog'
 EventEmitter  = require 'events'
+_             = require 'lodash'
 
 config  = require './config.coffee'
 
@@ -37,13 +38,9 @@ tryGetCachedResponse = (cacheKey) ->
     cacheResponse.headers = JSON.parse(lines[2])
     cacheResponse.createTime = stats.ctime.getTime()
     cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
-    cacheResponse.disposed = false
-    cacheResponse.dispose = () ->
-      return if cacheResponse.disposed
-      cacheResponse.disposed = true
-      # using an undocumented method that indeed does what we need it to do
-      # which is: close the fd
-      cacheResponse.body.close()
+    # using an undocumented method that indeed does what we need it to do
+    # which is: close the fd
+    cacheResponse.dispose = _.once => cacheResponse.body.close()
     return cacheResponse
   .catch (e) ->
     log.debug "error opening cache file #{cacheFilePath} #{e.message}"
@@ -74,11 +71,13 @@ cacheResponse = (cacheKey, response) ->
     promiseForMetadataFileToEndWrite = new Promise (resolve, reject) ->
       metadataStream.on 'finish', resolve
       metadataStream.on 'error', reject
+    metadataStreamCloser = _.once => metadataStream.close()
     metadataStream.write("#{response.statusCode}\n")
     metadataStream.write("#{response.statusMessage}\n")
     metadataStream.write("#{JSON.stringify response.headers}\n")
     metadataStream.end()
     bodyCacheWriteStream = fs.createWriteStream(cacheBodyFileTempPath, {flat: 'w', defaultEncoding: 'utf8'})
+    bodyCacheWriteStreamCloser = _.once => bodyCacheWriteStream.close()
     response.pipe(bodyCacheWriteStream)
     promiseForResponseToEnd = new Promise (resolve, reject) ->
       bodyCacheWriteStream.on 'finish', resolve
@@ -89,14 +88,13 @@ cacheResponse = (cacheKey, response) ->
     # files
     promiseForMetadataFileToEndWrite
     .then () -> promiseForResponseToEnd
+    .then () -> metadataStreamCloser()
+    .then () -> bodyCacheWriteStreamCloser()
     .then () -> fs.renameAsync(cacheFileTempPath, cacheFilePath)
     .then () -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath)
     .tap log.debug "response for #{cacheKey} has been written to cache"
     .then () -> cacheEventEmitter.emit("#{cacheKey}")
     .then resolve
-    .finally () ->
-      metadataStream.close()
-      bodyCacheWriteStream.close()
     .catch( (e) ->
       cacheEventEmitter.emit "#{cacheKey}", e
       reject(e)

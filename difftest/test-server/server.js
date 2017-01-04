@@ -50,6 +50,10 @@ app.all("/now-slow", function(request, response){
   }, 1000);
 });
 
+app.all("/destroy", function(request, response){
+  response.destroy();
+});
+
 listenPort = process.env.PORT || 8000;
 log.info("starting app " + process.env.APP_NAME);
 log.info("listening on " + listenPort);
