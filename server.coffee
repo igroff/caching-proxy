@@ -130,7 +130,7 @@ getCachedResponse = (context) ->
   cache.tryGetCachedResponse(context.cacheKey)
   .then (cachedResponse) ->
     context.cachedResponse = cachedResponse
-    
+    log.debug("no cached response for %s", context.cacheKey) unless context.cachedResponse
     return context
 
 determineIfCacheIsExpired = (context) ->
@@ -179,18 +179,19 @@ getCacheLockIfNoCachedResponseExists = (context) ->
     context.cacheLockDescriptor = lockDescriptor
     return context
 
-getAndCacheResponseIfNeeded = (context) ->
+getAndCacheResponseIfNoneExists = (context) ->
   new Promise (resolve, reject) ->
     # get and cache a response for the given request, if there is already 
     # a cached response there is nothing to do
     return resolve(context) if context.cachedResponse
-    log.debug "getAndCacheResponseIfNeeded"
+    log.debug "getAndCacheResponseIfNoneExists"
     reject new Error("need a cacheKey inorder to cache a response, none present") if not context.cacheKey
     responseCachedHandler = (e) ->
       log.debug "responseCacheHandler for contextId %d", context.contextId
       if e
         reject(e)
       else
+        log.warn "loading cached response (%s), existing cached response: %s", context.cacheKey, context.cachedResponse
         cache.tryGetCachedResponse(context.cacheKey)
         .then (cachedResponse) ->
           context.cachedResponse = cachedResponse
@@ -291,7 +292,7 @@ server = http.createServer (request, response) ->
     .then determineIfCacheIsExpired
     .then dumpCachedResponseIfStaleResponseIsNotAllowed
     .then getCacheLockIfNoCachedResponseExists
-    .then getAndCacheResponseIfNeeded
+    .then getAndCacheResponseIfNoneExists
     .then getCacheLockIfCacheIsExpired
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse
