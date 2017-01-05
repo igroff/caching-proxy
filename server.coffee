@@ -26,6 +26,7 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   #
   if request.cacheKey
+    log.warn "proxy response received for key: %s contextid: %s url: %s previous cache: %s", request.cachekey, request.contextid, request.url, request.cachedresponse
     cache.cacheResponse(request.cacheKey, proxyRes)
 
 class RequestHandlingComplete extends Error
