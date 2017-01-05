@@ -200,8 +200,8 @@ getAndCacheResponseIfNeeded = (context) ->
           reject(e)
     # if we've arrived here it's because the cached response didn't exist so we know we'll want to wait for one
     cache.events.once "#{context.cacheKey}", responseCachedHandler
-    # only if we get the cache lock will we rebuild, otherwise someone else is
-    # already rebuilding the cache metching this request
+    # only if we have the cache lock will we rebuild, otherwise someone else is
+    # already rebuilding the cache matching this request
     if context.cacheLockDescriptor
       log.debug "we got cache lock %s for %s, triggering rebuild %d", context.cacheLockDescriptor, context.cacheKey, context.contextId
       fauxProxyResponse = mocks.createResponse()
