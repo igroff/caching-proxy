@@ -164,7 +164,7 @@ dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
     log.debug "cached response expired, and our config specifies no serving stale cache items"
     # first we need to rid ourselves of the expired cached response, this has to happen here
     # because we're getting rid of it so we can load another ( or create another ) cached
-    # response, which will ultimately itself be disposed of at the end of the resopnse
+    # response, which will ultimately itself be disposed of at the end of the response
     context.cachedResponse.dispose()
     context.cachedResponse = undefined
     # and since we've just erased our cached response, we need to clear this
