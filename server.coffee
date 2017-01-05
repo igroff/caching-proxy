@@ -72,9 +72,16 @@ stripPathIfRequested = (context) ->
 
 determineIfProxiedOnlyOrCached = (context) ->
   log.debug "determineIfProxiedOnlyOrCached"
-  # it's a proxy only request if the maxAgeInMilliseconds is < 1, UNLESS it's an admin request which
-  # is never a proxy only request
-  context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1 unless context.isAdminRequest
+  # if we have no valid life span specified for a cache, we can't cache it
+  # so if our cache configurations are values < 0, we'll make the request
+  # proxy only
+  if context.targetConfig.maxAgeInMilliseconds < 1
+    context.isProxyOnly = true
+  else if context.targetConfig.dayRelativeExpirationTimeInMilliseconds < 1
+    context.isProxyOnly = true
+  # admin requests are NEVER proxy only 
+  if context.isAdminRequest
+    context.isProxyOnly = false
   return context
 
 handleProxyOnlyRequest = (context) ->
