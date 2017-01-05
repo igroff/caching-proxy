@@ -60,19 +60,7 @@ determineIfAdminRequest = (context) ->
 
 getTargetConfigForRequest = (context) ->
     log.debug "getTargetConfigForRequest"
-    # it's prossible to specify a proxy target in the request, this is intended to 
-    # be used for testing configuration changes prior to setting them 'in stone' via
-    # the config file, if the header IS present and an error is encountered while
-    # parsing it, we'll blow up
-    headerConfig = context.request.headers['x-proxy-target-config']
-    if headerConfig
-      try
-        context.targetConfig = JSON.parse(headerConfig)
-      catch e
-        throw new Error("error parsing target config from provided header: #{headerConfig}\n #{e.message}")
-    # if there was no config in the header, then we'll go ahead and load the matching config
-    if not context.targetConfig
-      context.targetConfig = config.findMatchingTarget(context.url)
+    context.targetConfig = config.findMatchingTarget(context.url)
     log.debug "target config: %j", context.targetConfig
     return context
 
