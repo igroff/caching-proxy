@@ -60,19 +60,7 @@ determineIfAdminRequest = (context) ->
 
 getTargetConfigForRequest = (context) ->
     log.debug "getTargetConfigForRequest"
-    # it's prossible to specify a proxy target in the request, this is intended to 
-    # be used for testing configuration changes prior to setting them 'in stone' via
-    # the config file, if the header IS present and an error is encountered while
-    # parsing it, we'll blow up
-    headerConfig = context.request.headers['x-proxy-target-config']
-    if headerConfig
-      try
-        context.targetConfig = JSON.parse(headerConfig)
-      catch e
-        throw new Error("error parsing target config from provided header: #{headerConfig}\n #{e.message}")
-    # if there was no config in the header, then we'll go ahead and load the matching config
-    if not context.targetConfig
-      context.targetConfig = config.findMatchingTarget(context.url)
+    context.targetConfig = config.findMatchingTarget(context.url)
     log.debug "target config: %j", context.targetConfig
     return context
 
@@ -84,9 +72,16 @@ stripPathIfRequested = (context) ->
 
 determineIfProxiedOnlyOrCached = (context) ->
   log.debug "determineIfProxiedOnlyOrCached"
-  # it's a proxy only request if the maxAgeInMilliseconds is < 1, UNLESS it's an admin request which
-  # is never a proxy only request
-  context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1 unless context.isAdminRequest
+  # if we have no valid life span specified for a cache, we can't cache it
+  # so if our cache configurations are values < 0, we'll make the request
+  # proxy only
+  if context.targetConfig.maxAgeInMilliseconds < 1
+    context.isProxyOnly = true
+  else if context.targetConfig.dayRelativeExpirationTimeInMilliseconds < 1
+    context.isProxyOnly = true
+  # admin requests are NEVER proxy only 
+  if context.isAdminRequest
+    context.isProxyOnly = false
   return context
 
 handleProxyOnlyRequest = (context) ->
@@ -112,14 +107,6 @@ readRequestBody = (context) ->
     context.request.once 'error', reject
 
 buildCacheKey = (context) ->
-  if context.targetConfig.maxAgeInMilliseconds
-    # if we have a maxAgeInMilliseconds and it is less than 1, there is no cache key needed
-    return context if context.targetConfig?.maxAgeInMilliseconds < 1
-
-  if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
-    # if we have a dayRelativeExpirationTimeInMilliseconds and it is less than 1, there is no cache key needed
-    return context if context.targetConfig.dayRelativeExpirationTimeInMilliseconds < 1
-    
   log.debug "buildCacheKey"
   # build a cache key
   cacheKeyData = "#{context.method}-#{context.pathOnly}-#{context.queryString or ''}-#{context.requestBody or ""}"
@@ -177,7 +164,7 @@ dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
     log.debug "cached response expired, and our config specifies no serving stale cache items"
     # first we need to rid ourselves of the expired cached response, this has to happen here
     # because we're getting rid of it so we can load another ( or create another ) cached
-    # response, which will ultimately itself be disposed of at the end of the resopnse
+    # response, which will ultimately itself be disposed of at the end of the response
     context.cachedResponse.dispose()
     context.cachedResponse = undefined
     # and since we've just erased our cached response, we need to clear this
@@ -213,8 +200,8 @@ getAndCacheResponseIfNeeded = (context) ->
           reject(e)
     # if we've arrived here it's because the cached response didn't exist so we know we'll want to wait for one
     cache.events.once "#{context.cacheKey}", responseCachedHandler
-    # only if we get the cache lock will we rebuild, otherwise someone else is
-    # already rebuilding the cache metching this request
+    # only if we have the cache lock will we rebuild, otherwise someone else is
+    # already rebuilding the cache matching this request
     if context.cacheLockDescriptor
       log.debug "we got cache lock %s for %s, triggering rebuild %d", context.cacheLockDescriptor, context.cacheKey, context.contextId
       fauxProxyResponse = mocks.createResponse()
