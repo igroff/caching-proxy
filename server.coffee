@@ -107,14 +107,6 @@ readRequestBody = (context) ->
     context.request.once 'error', reject
 
 buildCacheKey = (context) ->
-  if context.targetConfig.maxAgeInMilliseconds
-    # if we have a maxAgeInMilliseconds and it is less than 1, there is no cache key needed
-    return context if context.targetConfig?.maxAgeInMilliseconds < 1
-
-  if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
-    # if we have a dayRelativeExpirationTimeInMilliseconds and it is less than 1, there is no cache key needed
-    return context if context.targetConfig.dayRelativeExpirationTimeInMilliseconds < 1
-    
   log.debug "buildCacheKey"
   # build a cache key
   cacheKeyData = "#{context.method}-#{context.pathOnly}-#{context.queryString or ''}-#{context.requestBody or ""}"
