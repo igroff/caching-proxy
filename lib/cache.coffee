@@ -40,11 +40,27 @@ tryGetCachedResponse = (cacheKey) ->
     cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
     # using an undocumented method that indeed does what we need it to do
     # which is: close the fd
-    cacheResponse.dispose = _.once => cacheResponse.body.close()
+    cacheResponse.dispose = _.once =>
+      cacheResponse.body.close()
+      cacheResponse.isDisposed = true
     return cacheResponse
   .catch (e) ->
     log.debug "error opening cache file #{cacheFilePath} #{e.message}"
     return undefined
+
+addCachedResponseToContext = (context, cachedResponse) ->
+  return unless cachedResponse
+  context.cachedResponse?.dispose()
+  context.contextEvents.on 'clientdisconnect', cachedResponse.dispose
+  context.contextEvents.on 'responsefinish', cachedResponse.dispose
+  context.cachedResponse = cachedResponse
+
+removeCachedResponseFromContext = (context) ->
+  return unless context.cachedResponse
+  context.contextEvents.removeListener 'clientdisconnect', context.cachedResponse.dispose
+  context.contextEvents.removeListener 'responsefinish', context.cachedResponse.dispose
+  context.cachedResponse.dispose()
+  context.cachedResponse = undefined
 
 getCacheFilePath = (requestInfo) ->
   uniqueIdentifier = "#{process.pid}.#{new Date().getTime()}.#{++tempCounter}"
@@ -117,3 +133,5 @@ module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
 module.exports.deleteCacheEntry = deleteCacheEntry
 module.exports.events = cacheEventEmitter
+module.exports.addCachedResponseToContext = addCachedResponseToContext
+module.exports.removeCachedResponseFromContext = removeCachedResponseFromContext

@@ -71,6 +71,11 @@
     "serveStaleCache": true
   },
   {
+    "route": "/sleep",
+    "target": "http://localhost:8000/sleep",
+    "maxAgeInMilliseconds": 2000
+  },
+  {
     "route": "/howdy.html",
     "target": "http://localhost:8000",
     "maxAgeInMilliseconds": 25

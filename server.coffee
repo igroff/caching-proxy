@@ -26,7 +26,7 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   #
   if request.cacheKey
-    log.warn "proxy response received for key: %s contextid: %s url: %s previous cache: %s", request.cacheKey, request.contextid, request.url, request.cachedresponse
+    log.warn "proxy response received for key: %s contextid: %s url: %s previous cache: %s, disposed: %s", request.cacheKey, request.contextId, request.url, request.cachedResponse, request.cachedResponse?.isDisposed
     cache.cacheResponse(request.cacheKey, proxyRes)
 
 class RequestHandlingComplete extends Error
@@ -92,7 +92,7 @@ handleProxyOnlyRequest = (context) ->
     proxyError = (e) ->
       log.error "error during proxy only request"
       reject(e)
-    context.response.once 'finish', () ->
+    context.contextEvents.once 'responsefinish', () ->
       #This one is a bit odd, because if we proxy the request, we're done that's all there is to do
       reject new RequestHandlingComplete()
     proxy.web(context.request, context.response, { target: context.targetConfig.target, headers: context.targetConfig.headers}, proxyError)
@@ -130,7 +130,7 @@ getCachedResponse = (context) ->
   log.debug "getCachedResponse"
   cache.tryGetCachedResponse(context.cacheKey)
   .then (cachedResponse) ->
-    context.cachedResponse = cachedResponse
+    cache.addCachedResponseToContext context, cachedResponse
     log.debug("no cached response for %s", context.cacheKey) unless context.cachedResponse
     return context
 
@@ -166,8 +166,7 @@ dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
     # first we need to rid ourselves of the expired cached response, this has to happen here
     # because we're getting rid of it so we can load another ( or create another ) cached
     # response, which will ultimately itself be disposed of at the end of the response
-    context.cachedResponse.dispose()
-    context.cachedResponse = undefined
+    cache.removeCachedResponseFromContext context
     # and since we've just erased our cached response, we need to clear this
     context.cachedResponseIsExpired = false
   return context
@@ -195,7 +194,7 @@ getAndCacheResponseIfNoneExists = (context) ->
         log.warn "loading cached response (%s), existing cached response: %s", context.cacheKey, context.cachedResponse
         cache.tryGetCachedResponse(context.cacheKey)
         .then (cachedResponse) ->
-          context.cachedResponse = cachedResponse
+          cache.addCachedResponseToContext context, cachedResponse
           resolve(context)
         .catch (e) ->
           log.debug "error %s contextId %d", context.contextId, e
@@ -238,9 +237,8 @@ serveCachedResponse = (context) ->
   cachedResponse.headers['x-cache-serve-duration-ms'] = serveDuration
   context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
   cachedResponse.body.pipe(context.response)
-  context.response.once 'finish', () ->
+  context.contextEvents.once 'responsefinish', () ->
     log.info "%s cached response served in %d ms", context.request.url, serveDuration
-    context.cachedResponse?.dispose()
   return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->
@@ -270,6 +268,10 @@ server = http.createServer (request, response) ->
   log.debug "#{request.method} #{request.url}"
   getContextThatUnlocksCacheOnDispose = () ->
     buildContext(request, response).disposer (context, promise) ->
+      # if we've lost our client, this is how we know and as such there is no 
+      # sense in keeping the cached response around since we'll never serve it to anyone
+      # normally we'd 
+      cache.removeCachedResponseFromContext(context) if context.clientIsDisconnected
       log.debug "disposing of request %d", context.contextId
       if context.cacheLockDescriptor
         log.debug "unlocking cache lock %s during context dispose %d", context.cacheLockDescriptor, context.contextId

@@ -4,6 +4,8 @@ log     = require 'simplog'
 
 idGenerator = 0
 
+class ContextEventEmitter extends require('events').EventEmitter
+
 class Context extends require('stream').Readable
   constructor: (req) ->
       @url = req.url
@@ -19,6 +21,7 @@ class Context extends require('stream').Readable
       @cacheLockDescriptor = null
       @contextId = ++idGenerator
       @isDebugRequest = false
+      @contextEvents = new ContextEventEmitter()
       super({})
       return unless @queryString
       # we set up our debug flag if it was requests, AND we clear it
@@ -32,7 +35,7 @@ class Context extends require('stream').Readable
       else if @queryString.indexOf('debug=true') isnt -1
         @queryString = @queryString.replace(/debug=true/g, '')
         @isDebugRequest = true
-        
+
   toString: => JSON.stringify(url: @url, method: @method, config: @config, body: @body)
   _read: (size) =>
     @.push(this.requestBody)
@@ -43,6 +46,13 @@ buildContext = (request, response) ->
     baseContext = new Context(request)
     baseContext.request = request
     baseContext.response = response
+    # this is the only way to tell ( that I can find ) that you're sort of 'done' with the
+    # handling of request. This is because if this happens, you won't get any of the 
+    # response finish or close events it just kind of silently dies. We need this info
+    # so that we can clean up our resources (open files).
+    baseContext.request.socket.on 'end', () -> baseContext.contextEvents.emit 'clientdisconnect'
+    baseContext.response.on 'finish', () -> baseContext.contextEvents.emit 'responsefinish'
+    baseContext.contextEvents.on 'clientdisconnect', () -> baseContext.clientIsDisconnected = true
     resolve(baseContext)
 
 module.exports = buildContext

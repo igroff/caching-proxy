@@ -35,6 +35,12 @@ app.all("/long_sleep/*", function(request, response){
   }
   setTimeout(respond, 124000);
 });
+app.all("/sleep/*", function(request, response){
+  function respond(){
+    response.status(200).send("DONE");
+  }
+  setTimeout(respond, 5000);
+});
 
 app.all("/echo-something/only-with-this-path", function (request, response){
   response.status(200).send("this is a response to be expected");
