@@ -26,7 +26,7 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   #
   if request.cacheKey
-    log.warn "proxy response received for key: %s contextid: %s url: %s previous cache: %s, disposed: %s", request.cacheKey, request.contextId, request.url, request.cachedResponse, request.cachedResponse?.isDisposed
+    log.debug "proxy response received for key: %s contextid: %s url: %s previous cache: %s, disposed: %s", request.cacheKey, request.contextId, request.url, request.cachedResponse, request.cachedResponse?.isDisposed
     cache.cacheResponse(request.cacheKey, proxyRes)
 
 class RequestHandlingComplete extends Error
@@ -191,7 +191,7 @@ getAndCacheResponseIfNoneExists = (context) ->
       if e
         reject(e)
       else
-        log.warn "loading cached response (%s), existing cached response: %s", context.cacheKey, context.cachedResponse
+        log.debug "loading cached response (%s), existing cached response: %s", context.cacheKey, context.cachedResponse
         cache.tryGetCachedResponse(context.cacheKey)
         .then (cachedResponse) ->
           cache.addCachedResponseToContext context, cachedResponse
