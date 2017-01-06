@@ -38,6 +38,7 @@ tryGetCachedResponse = (cacheKey) ->
     cacheResponse.headers = JSON.parse(lines[2])
     cacheResponse.createTime = stats.ctime.getTime()
     cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
+    cacheResponse.body.on 'error', (e) -> log.error "error from cached response stream %s cache key %s", e, cacheKey
     # using an undocumented method that indeed does what we need it to do
     # which is: close the fd
     cacheResponse.dispose = _.once =>
