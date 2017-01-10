@@ -1,11 +1,14 @@
 Promise       = require 'bluebird'
+using         = Promise.using
 fs            = Promise.promisifyAll(require('fs'))
 path          = require 'path'
 log           = require 'simplog'
 EventEmitter  = require 'events'
 _             = require 'lodash'
+ReadWriteLock = require 'rwlock'
 
 config  = require './config.coffee'
+readWriteLock = new ReadWriteLock()
 
 # just a counter to help us create unique file names
 tempCounter = 0
@@ -18,36 +21,41 @@ lockMap = {}
 cacheEventEmitter.setMaxListeners(1000)
 
 tryGetCachedResponse = (cacheKey) ->
-  log.debug "tryGetCachedResponse(#{cacheKey})"
-  [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
-  return fs.statAsync(cacheFilePath)
-  .then () ->
-    fs.statAsync(cacheBodyFilePath)
-  .then (stats) ->
-    log.debug "cacheFilePath #{cacheFilePath}"
-    log.debug "cacheBodyFilePath #{cacheBodyFilePath}"
-    Promise.all([fs.readFileAsync(cacheFilePath, encoding: 'utf8'), stats])
-  .then (r) ->
-    data = r[0]
-    stats = r[1]
-    log.debug "cacheFileData: #{data}"
-    lines = data.split('\n')
-    cacheResponse = {}
-    cacheResponse.statusCode = Number(lines[0])
-    cacheResponse.statusMessage = lines[1]
-    cacheResponse.headers = JSON.parse(lines[2])
-    cacheResponse.createTime = stats.ctime.getTime()
-    cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
-    cacheResponse.body.on 'error', (e) -> log.error "error from cached response stream %s cache key %s", e, cacheKey
-    # using an undocumented method that indeed does what we need it to do
-    # which is: close the fd
-    cacheResponse.dispose = _.once =>
-      cacheResponse.body.close()
-      cacheResponse.isDisposed = true
-    return cacheResponse
-  .catch (e) ->
-    log.debug "error opening cache file #{cacheFilePath} #{e.message}"
-    return undefined
+  new Promise (resolve, reject) ->
+    log.debug "tryGetCachedResponse(#{cacheKey})"
+    [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
+    fs.statAsync(cacheFilePath)
+    .then () ->
+      fs.statAsync(cacheBodyFilePath)
+    .then (stats) ->
+      log.debug "cacheFilePath #{cacheFilePath}"
+      log.debug "cacheBodyFilePath #{cacheBodyFilePath}"
+      Promise.all([fs.readFileAsync(cacheFilePath, encoding: 'utf8'), stats])
+    .then (r) ->
+      data = r[0]
+      stats = r[1]
+      log.debug "cacheFileData: #{data}"
+      lines = data.split('\n')
+      cacheResponse = {}
+      cacheResponse.statusCode = Number(lines[0])
+      cacheResponse.statusMessage = lines[1]
+      cacheResponse.headers = JSON.parse(lines[2])
+      cacheResponse.createTime = stats.ctime.getTime()
+      cacheResponse.body = fs.createReadStream(cacheBodyFilePath)
+      cacheResponse.body.on 'error', (e) -> log.error "error from cached response stream %s cache key %s", e, cacheKey
+      readWriteLock.readLock cacheKey, (release) ->
+        # using an undocumented method that indeed does what we need it to do
+        # which is: close the fd
+        cacheResponse.dispose = _.once =>
+          cacheResponse.body.close()
+          cacheResponse.isDisposed = true
+          release()
+        resolve cacheResponse
+    .catch (e) ->
+      # if we have a problem reading the cache, we just return nothing
+      # because... we couldn't read anything
+      log.debug "error opening cache file #{cacheFilePath} #{e.message}"
+      resolve undefined
 
 addCachedResponseToContext = (context, cachedResponse) ->
   return unless cachedResponse
@@ -100,22 +108,29 @@ cacheResponse = (cacheKey, response) ->
       bodyCacheWriteStream.on 'finish', resolve
       bodyCacheWriteStream.on 'error', reject
       response.on 'error', reject
+    acquireWriteLock = () ->
+      promise = new Promise (resolve, reject) ->
+        readWriteLock.writeLock(cacheKey, (release) -> resolve(release))
+      promise.disposer (release, promise) -> release()
     # once the response is complete, we will have written (piped) out the response to the
     # temp file, all that remains is to move the temp files into place of the 'non temp' 
     # files
-    promiseForMetadataFileToEndWrite
-    .then () -> promiseForResponseToEnd
-    .then () -> metadataStreamCloser()
-    .then () -> bodyCacheWriteStreamCloser()
-    .then () -> fs.renameAsync(cacheFileTempPath, cacheFilePath)
-    .then () -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath)
-    .tap log.debug "response for #{cacheKey} has been written to cache"
-    .then () -> cacheEventEmitter.emit("#{cacheKey}")
-    .then resolve
-    .catch( (e) ->
-      cacheEventEmitter.emit "#{cacheKey}", e
-      reject(e)
-    )
+    writePipeline = () ->
+      Promise.resolve()
+      .then () -> promiseForMetadataFileToEndWrite
+      .then () -> promiseForResponseToEnd
+      .then () -> metadataStreamCloser()
+      .then () -> bodyCacheWriteStreamCloser()
+      .then () -> fs.renameAsync(cacheFileTempPath, cacheFilePath)
+      .then () -> fs.renameAsync(cacheBodyFileTempPath, cacheBodyFilePath)
+      .tap log.debug "response for #{cacheKey} has been written to cache"
+      .then () -> cacheEventEmitter.emit("#{cacheKey}")
+      .then resolve
+      .catch( (e) ->
+        cacheEventEmitter.emit "#{cacheKey}", e
+        reject(e)
+      )
+    using(acquireWriteLock(), writePipeline)
 
 promiseToGetCacheLock = (cacheKey) ->
   return new Promise (resolve, reject) ->
