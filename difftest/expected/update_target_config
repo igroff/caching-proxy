@@ -1,1 +1,116 @@
-{"status":"ok","targets":[{"route":"/test/servername","target":"http://services.pants.com/something/","maxAgeInMilliseconds":5000,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/test/serverpants","target":"http://servicespants-internal.pants.com/anotherthing/","maxAgeInMilliseconds":5000,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/error/invalid_cert","target":"https://www.google.com/","maxAgeInMilliseconds":5000,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/error/invalid_dns_name_cached","target":"http://this.is.an.invalid.dns.name.fauxr.us/echo","maxAgeInMilliseconds":5000,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/include/body_proxy","target":"http://localhost:8000/echo/","maxAgeInMilliseconds":0,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/include/body","target":"http://localhost:8000/echo/","maxAgeInMilliseconds":5000,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/epiquery1.*","target":"http://localhost:9090","maxAgeInMilliseconds":1000,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/error/invalid_dns_name","target":"http://this.is.an.invalid.dns.name.fauxr.us/echo","maxAgeInMilliseconds":0,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/no_cache.html","target":"http://localhost:8000","maxAgeInMilliseconds":0,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/mysql/test/mysql_echo.dot","target":"http://localhost:9090/epiquery1/","maxAgeInMilliseconds":5000,"headers":{"a_valid_bitmask":1},"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"/howdy.html","target":"http://localhost:8000","maxAgeInMilliseconds":25,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true},{"route":"*","target":"http://localhost:8000","maxAgeInMilliseconds":0,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true}]}
+{
+  "status": "ok",
+  "targets": [
+    {
+      "route": "/test/servername",
+      "target": "http://services.pants.com/something/",
+      "maxAgeInMilliseconds": 5000,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/test/serverpants",
+      "target": "http://servicespants-internal.pants.com/anotherthing/",
+      "maxAgeInMilliseconds": 5000,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/error/invalid_cert",
+      "target": "https://www.google.com/",
+      "maxAgeInMilliseconds": 5000,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/error/invalid_dns_name_cached",
+      "target": "http://this.is.an.invalid.dns.name.fauxr.us/echo",
+      "maxAgeInMilliseconds": 5000,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/include/body_proxy",
+      "target": "http://localhost:8000/echo/",
+      "maxAgeInMilliseconds": 0,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/include/body",
+      "target": "http://localhost:8000/echo/",
+      "maxAgeInMilliseconds": 5000,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/epiquery1.*",
+      "target": "http://localhost:9090",
+      "maxAgeInMilliseconds": 1000,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/error/invalid_dns_name",
+      "target": "http://this.is.an.invalid.dns.name.fauxr.us/echo",
+      "maxAgeInMilliseconds": 0,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/no_cache.html",
+      "target": "http://localhost:8000",
+      "maxAgeInMilliseconds": 0,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/mysql/test/mysql_echo.dot",
+      "target": "http://localhost:9090/epiquery1/",
+      "maxAgeInMilliseconds": 5000,
+      "headers": {
+        "a_valid_bitmask": 1
+      },
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "/howdy.html",
+      "target": "http://localhost:8000",
+      "maxAgeInMilliseconds": 25,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    },
+    {
+      "route": "*",
+      "target": "http://localhost:8000",
+      "maxAgeInMilliseconds": 0,
+      "regexp": {},
+      "sendPathWithProxiedRequest": true,
+      "serveStaleCache": true,
+      "cacheNon200Response": true
+    }
+  ]
+}

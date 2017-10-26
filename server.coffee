@@ -26,8 +26,16 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   #
   if request.cacheKey
-    log.debug "proxy response received for key: %s contextid: %s url: %s previous cache: %s, disposed: %s", request.cacheKey, request.contextId, request.url, request.cachedResponse, request.cachedResponse?.isDisposed
-    cache.cacheResponse(request.cacheKey, proxyRes)
+    # so, if cacheNon200Response is true, we cache it all the time otherwise we only
+    # cache responses with a status of 200
+    shouldICacheIt = request.targetConfig.cacheNon200Response or proxyRes.statusCode is 200
+    if shouldICacheIt
+      console.log "status: ", proxyRes.statusCode
+      log.debug "proxy response received for key: %s contextid: %s url: %s previous cache: %s, disposed: %s", request.cacheKey, request.contextId, request.url, request.cachedResponse, request.cachedResponse?.isDisposed
+      cache.cacheResponse(request.cacheKey, proxyRes)
+    else
+      log.debug "notifying end of cache cycle"
+      cache.events.emit(request.cacheKey)
 
 class RequestHandlingComplete extends Error
   constructor: (@stepOrMessage="") ->
@@ -154,6 +162,7 @@ determineIfCacheIsExpired = (context) ->
     # queue up a rebuild request BUT still serve the cached response
     log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, context.requestStartTime, context.requestStartTime - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
     context.cachedResponseIsExpired = context.requestStartTime - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+    log.debug "cachedResponseIsExpired: #{context.cachedResponseIsExpired}"
   return context
 
 dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->

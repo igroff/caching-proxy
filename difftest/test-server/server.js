@@ -5,6 +5,7 @@ var bodyParser      = require('body-parser');
 var connect         = require('connect');
 var connectTimeout  = require('connect-timeout');
 var log             = require('simplog');
+var fs              = require('fs');
 
 
 var app = express();
@@ -54,6 +55,14 @@ app.all("/now-slow", function(request, response){
   setTimeout(function(){
     response.status(200).send(new Date().getTime().toString());
   }, 1000);
+});
+
+app.all("/modal", function(request, response){
+  if (fs.existsSync(__dirname + '/show_error')){
+    response.status(500).send(new Date().getTime().toString());
+  } else {
+    response.status(200).send(new Date().getTime().toString());
+  }
 });
 
 app.all("/destroy", function(request, response){

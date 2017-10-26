@@ -43,6 +43,7 @@ config.setTargetConfig = (targetConfig) ->
       target.regexp = new RegExp(/./)
     else
       target.regexp = new RegExp('^' + target.route.replace(/\//g, '\\/'))
+    log.debug "route (#{target.route}) regular expression matcher is #{target.regexp}"
 
   targetSendPathDefault = (target) ->
     if target.sendPathWithProxiedRequest is undefined
@@ -51,17 +52,29 @@ config.setTargetConfig = (targetConfig) ->
   targetServeStaleCacheDefault = (target) ->
     if target.serveStaleCache is undefined
       target.serveStaleCache = true
+  
+  # adding the ability to specify cache behavior for error resopnses, the historical behavior
+  # was to cache since the cache knows nothing at all about what the called service behavior is
+  # this allows the config to change that behavior, and allow for _not_ caching responses 
+  # that are not 200
+  targetCacheNon200Response = (target) ->
+    if target.cacheNon200Response is undefined
+      target.cacheNon200Response = true
 
   throw new Error "target config must be an array of target configuration objects" unless _.isArray targetList
   targetList.forEach(targetValidator)
   targetList.forEach(targetRegexBuilder)
   targetList.forEach(targetSendPathDefault)
   targetList.forEach(targetServeStaleCacheDefault)
+  targetList.forEach(targetCacheNon200Response)
   config.targets = targetList
 
 config.findMatchingTarget = (url) ->
   # find the config that matches this request
-  matchedTarget =  _.find(config.targets, (target) -> target.regexp.test(url))
+  matchedTarget =  _.find(config.targets, (target) ->
+    log.debug "testing: #{target.regexp}"
+    target.regexp.test(url)
+  )
   # if there is no matching target, then we'll create a cacheless target for the
   # default target, this means that the default behavior of the proxy is to
   # proxy to the default target with no caching

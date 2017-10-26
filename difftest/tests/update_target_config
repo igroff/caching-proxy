@@ -1,4 +1,4 @@
 #! /usr/bin/env bash
 # vi: set ft=sh
-curl -s http://localhost:8080/____/targetConfig --data-binary @difftest/data/valid_target_config.json -H 'Content-Type: application/json'
+curl -s http://localhost:8080/____/targetConfig --data-binary @difftest/data/valid_target_config.json -H 'Content-Type: application/json' | jq .
 curl -s http://localhost:8080/____/targetConfig --data-binary @difftest/etc/target_config.json -H 'Content-Type: application/json' > /dev/null 2>&1

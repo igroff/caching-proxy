@@ -81,6 +81,12 @@
     "maxAgeInMilliseconds": 25
   },
   {
+    "route": "/modal",
+    "target": "http://localhost:8000",
+    "maxAgeInMilliseconds": 25000,
+    "cacheNon200Response": false
+  },
+  {
     "route": "/short-lived",
     "target": "http://localhost:8000/now",
     "maxAgeInMilliseconds": 10000,
