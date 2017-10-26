@@ -1,0 +1,5 @@
+{"status":"ok","message":"cache entry removed"}
+looks good
+response rebuilt after cache expired
+just for sanity, we're going to check that we keep getting the same resopnse now that it is cached
+looks good

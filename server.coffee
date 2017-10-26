@@ -20,13 +20,22 @@ proxy = httpProxy.createProxyServer({ws: true})
 # another way this is currently the only way to get the response from
 # http-proxy
 proxy.on 'proxyRes', (proxyRes, request, res) ->
-  log.debug "proxy response received for key: #{request.cacheKey} contextId #{request.contextId}"
+  log.debug "proxy response received for key: %s contextId %s", request.cacheKey, request.contextId
   # a configuration may specify that the response be cached, or simply proxied.
   # In the case of caching being desired a cacheKey will be present otherwise
   # there will be no cacheKey.  So, if no cache key, no caching has been requested
   #
   if request.cacheKey
-    cache.cacheResponse(request.cacheKey, proxyRes)
+    # so, if cacheNon200Response is true, we cache it all the time otherwise we only
+    # cache responses with a status of 200
+    shouldICacheIt = request.targetConfig.cacheNon200Response or proxyRes.statusCode is 200
+    if shouldICacheIt
+      console.log "status: ", proxyRes.statusCode
+      log.debug "proxy response received for key: %s contextid: %s url: %s previous cache: %s, disposed: %s", request.cacheKey, request.contextId, request.url, request.cachedResponse, request.cachedResponse?.isDisposed
+      cache.cacheResponse(request.cacheKey, proxyRes)
+    else
+      log.debug "notifying end of cache cycle"
+      cache.events.emit(request.cacheKey)
 
 class RequestHandlingComplete extends Error
   constructor: (@stepOrMessage="") ->
@@ -34,7 +43,9 @@ class RequestHandlingComplete extends Error
     super()
 
 noteStartTime = (context) ->
-  context.requestStartTime = new Date()
+  now = new Date()
+  context.requestStartTime = now.getTime()
+  context.startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   return context
 
 setDebugIfAskedFor = (context) ->
@@ -53,31 +64,33 @@ determineIfAdminRequest = (context) ->
     context.adminCommand = adminRequestInfo[0]
     context.url = adminRequestInfo[1]
     [context.pathOnly, context.queryString] = context.url.split('?')
-    log.debug "we have an admin request command '#{context.adminCommand}' and url '#{context.url}'"
+    log.debug "we have an admin request command '%s' and url '%s'", context.adminCommand, context.url
   return context
 
 getTargetConfigForRequest = (context) ->
     log.debug "getTargetConfigForRequest"
-    # it's prossible to specify a proxy target in the request, this is intended to 
-    # be used for testing configuration changes prior to setting them 'in stone' via
-    # the config file, if the header IS present and an error is encountered while
-    # parsing it, we'll blow up
-    headerConfig = context.request.headers['x-proxy-target-config']
-    if headerConfig
-      try
-        context.targetConfig = JSON.parse(headerConfig)
-      catch e
-        throw new Error("error parsing target config from provided header: #{headerConfig}\n #{e.message}")
-    # if there was no config in the header, then we'll go ahead and load the matching config
-    if not context.targetConfig
-      context.targetConfig = config.findMatchingTarget(context.url)
+    context.targetConfig = config.findMatchingTarget(context.url)
+    log.debug "target config: %j", context.targetConfig
     return context
+
+stripPathIfRequested = (context) ->
+  return context if context.targetConfig.sendPathWithProxiedRequest
+  log.debug "stripPathIfRequested"
+  context.url = ""
+  return context
 
 determineIfProxiedOnlyOrCached = (context) ->
   log.debug "determineIfProxiedOnlyOrCached"
-  # it's a proxy only request if the maxAgeInMilliseconds is < 1, UNLESS it's an admin request which
-  # is never a proxy only request
-  context.isProxyOnly = context.targetConfig.maxAgeInMilliseconds < 1 unless context.isAdminRequest
+  # if we have no valid life span specified for a cache, we can't cache it
+  # so if our cache configurations are values < 0, we'll make the request
+  # proxy only
+  if context.targetConfig.maxAgeInMilliseconds < 1
+    context.isProxyOnly = true
+  else if context.targetConfig.dayRelativeExpirationTimeInMilliseconds < 1
+    context.isProxyOnly = true
+  # admin requests are NEVER proxy only 
+  if context.isAdminRequest
+    context.isProxyOnly = false
   return context
 
 handleProxyOnlyRequest = (context) ->
@@ -87,7 +100,7 @@ handleProxyOnlyRequest = (context) ->
     proxyError = (e) ->
       log.error "error during proxy only request"
       reject(e)
-    context.response.once 'finish', () ->
+    context.contextEvents.once 'responsefinish', () ->
       #This one is a bit odd, because if we proxy the request, we're done that's all there is to do
       reject new RequestHandlingComplete()
     proxy.web(context.request, context.response, { target: context.targetConfig.target, headers: context.targetConfig.headers}, proxyError)
@@ -103,7 +116,6 @@ readRequestBody = (context) ->
     context.request.once 'error', reject
 
 buildCacheKey = (context) ->
-  return context if context.targetConfig?.maxAgeInMilliseconds < 1
   log.debug "buildCacheKey"
   # build a cache key
   cacheKeyData = "#{context.method}-#{context.pathOnly}-#{context.queryString or ''}-#{context.requestBody or ""}"
@@ -126,8 +138,47 @@ getCachedResponse = (context) ->
   log.debug "getCachedResponse"
   cache.tryGetCachedResponse(context.cacheKey)
   .then (cachedResponse) ->
-    context.cachedResponse = cachedResponse
+    cache.addCachedResponseToContext context, cachedResponse
+    log.debug("no cached response for %s", context.cacheKey) unless context.cachedResponse
     return context
+
+determineIfCacheIsExpired = (context) ->
+  log.debug "determineIfCacheIsExpired"
+  cachedResponse = context.cachedResponse
+  return context unless cachedResponse
+  # we start with the assumption that the cached response is not expired, and we prove otherwise
+  # this err's on the side of serving the cached response as, if we have a cached response, the
+  # expectation is that it will be served
+  context.cachedResponseIsExpired = false
+  if context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+    context.absoluteExpirationTime = context.startOfDay + context.targetConfig.dayRelativeExpirationTimeInMilliseconds
+    absoluteRequestTimeInMs = context.requestStartTime - context.startOfDay
+    log.debug "absolute expiration time: %s, now %s", context.targetConfig.dayRelativeExpirationTimeInMilliseconds, absoluteRequestTimeInMs
+    # if the time of our request is more than the configured value of milliesconds past the start of the day
+    # AND the cached response was created BEFORE the absolute expiration time we'll consider the cache expired
+    context.cachedResponseIsExpired = ((absoluteRequestTimeInMs) > context.targetConfig.dayRelativeExpirationTimeInMilliseconds) and (cachedResponse.createTime < context.absoluteExpirationTime)
+  else
+    # if our cached response is older than is configured for the max age, then we'll
+    # queue up a rebuild request BUT still serve the cached response
+    log.debug "create time: %s, now %s, delta %s, maxAge: %s", cachedResponse.createTime, context.requestStartTime, context.requestStartTime - cachedResponse.createTime, context.targetConfig.maxAgeInMilliseconds
+    context.cachedResponseIsExpired = context.requestStartTime - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
+    log.debug "cachedResponseIsExpired: #{context.cachedResponseIsExpired}"
+  return context
+
+dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
+  # here's the deal, if we want a cached response to NEVER be served IF stale, the target config
+  # will be configued with a falsey serveStaleCache, so in that case we'll just flat dump any
+  # cached response we may have IF it is expired. We do it here before we get the cache lock
+  # because we will need to acquire that ( if no one else has it ) as we'll be rebuilding it
+  if not context.targetConfig.serveStaleCache and context.cachedResponseIsExpired
+    log.debug "cached response expired, and our config specifies no serving stale cache items"
+    # first we need to rid ourselves of the expired cached response, this has to happen here
+    # because we're getting rid of it so we can load another ( or create another ) cached
+    # response, which will ultimately itself be disposed of at the end of the response
+    cache.removeCachedResponseFromContext context
+    # and since we've just erased our cached response, we need to clear this
+    context.cachedResponseIsExpired = false
+  return context
 
 getCacheLockIfNoCachedResponseExists = (context) ->
   return context if context.cachedResponse # we have a cached, response no need to lock anything
@@ -137,49 +188,39 @@ getCacheLockIfNoCachedResponseExists = (context) ->
     context.cacheLockDescriptor = lockDescriptor
     return context
 
-getAndCacheResponseIfNeeded = (context) ->
+getAndCacheResponseIfNoneExists = (context) ->
   new Promise (resolve, reject) ->
     # get and cache a response for the given request, if there is already 
     # a cached response there is nothing to do
     return resolve(context) if context.cachedResponse
-    log.debug "getAndCacheResponseIfNeeded"
+    log.debug "getAndCacheResponseIfNoneExists"
     reject new Error("need a cacheKey inorder to cache a response, none present") if not context.cacheKey
     responseCachedHandler = (e) ->
-      log.debug "responseCacheHandler for contextId #{context.contextId}"
+      log.debug "responseCacheHandler for contextId %d", context.contextId
       if e
         reject(e)
       else
+        log.debug "loading cached response (%s), existing cached response: %s", context.cacheKey, context.cachedResponse
         cache.tryGetCachedResponse(context.cacheKey)
         .then (cachedResponse) ->
-          context.cachedResponse = cachedResponse
+          cache.addCachedResponseToContext context, cachedResponse
           resolve(context)
         .catch (e) ->
-          log.debug "error #{e} contextId #{context.contextId}"
+          log.debug "error %s contextId %d", context.contextId, e
           reject(e)
     # if we've arrived here it's because the cached response didn't exist so we know we'll want to wait for one
     cache.events.once "#{context.cacheKey}", responseCachedHandler
-    # only if we get the cache lock will we rebuild, otherwise someone else is
-    # already rebuilding the cache metching this request
+    # only if we have the cache lock will we rebuild, otherwise someone else is
+    # already rebuilding the cache matching this request
     if context.cacheLockDescriptor
-      log.debug "we got cache lock #{context.cacheLockDescriptor} for #{context.cacheKey}, triggering rebuild #{context.contextId}"
+      log.debug "we got cache lock %s for %s, triggering rebuild %d", context.cacheLockDescriptor, context.cacheKey, context.contextId
       fauxProxyResponse = mocks.createResponse()
       handleProxyError = (e) ->
-        log.error "error proxying cache rebuild request to #{context.targetConfig}\n%s", e
+        log.error "error proxying cache rebuild request to %s\n%s", context.targetConfig, e
         reject(e)
       proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target, headers: context.targetConfig.headers }, handleProxyError)
     else
-      log.debug "didn't get the cache lock for #{context.cacheKey}, waiting for in progress rebuild contextId #{context.contextId}"
-
-
-determineIfCacheIsExpired = (context) ->
-  log.debug "determineIfCacheIsExpired"
-  cachedResponse = context.cachedResponse
-  now = new Date().getTime()
-  # if our cached response is older than is configured for the max age, then we'll
-  # queue up a rebuild request BUT still serve the cached response
-  log.debug "create time: #{cachedResponse.createTime}, now #{now}, delta #{now - cachedResponse.createTime}, maxAge: #{context.targetConfig.maxAgeInMilliseconds}"
-  context.cachedResponseIsExpired = now - cachedResponse.createTime > context.targetConfig.maxAgeInMilliseconds
-  return context
+      log.debug "didn't get the cache lock for %s, waiting for in progress rebuild contextId %d", context.cacheKey, context.contextId
 
 getCacheLockIfCacheIsExpired = (context) ->
   new Promise (resolve, reject) ->
@@ -201,23 +242,23 @@ serveCachedResponse = (context) ->
   cachedResponse.headers['x-cached-by-route'] = context.targetConfig.route
   cachedResponse.headers['x-cache-key'] = context.cacheKey
   cachedResponse.headers['x-cache-created'] = cachedResponse.createTime
-  serveDuration = new Date().getTime() -  context.requestStartTime.getTime()
+  serveDuration = new Date().getTime() -  context.requestStartTime
   cachedResponse.headers['x-cache-serve-duration-ms'] = serveDuration
   context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
   cachedResponse.body.pipe(context.response)
-  context.response.once 'finish', () -> log.info "#{context.request.url} cached response served in #{serveDuration}ms"
+  context.contextEvents.once 'responsefinish', () ->
+    log.info "%s cached response served in %d ms", context.request.url, serveDuration
   return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->
   new Promise (resolve, reject) ->
     return reject new Error("no cached response found, cannot trigger rebuild") unless context.cachedResponse
-    log.debug "triggerRebuildOfExpiredCachedResponse"
     cachedResponse = context.cachedResponse
     if context.cachedResponseIsExpired and context.cacheLockDescriptor
-      log.debug "triggering rebuild of cache for #{context.cacheKey}"
+      log.debug "triggerRebuildOfExpiredCachedResponse(%s)", context.cacheKey
       fauxProxyResponse = mocks.createResponse()
       handleProxyError = (e) ->
-        log.error "error proxying cache rebuild request to #{context.targetConfig.target}\n%s", e
+        log.error "error proxying cache rebuild request to %s\n%s", context.targetConfig.target, e
         reject(e)
       # while we don't actually need to wait for this response to be cached ( for the requestor ) because a
       # cached resopnse will have already been served, we do need to keep our pipeline going as expected
@@ -236,9 +277,13 @@ server = http.createServer (request, response) ->
   log.debug "#{request.method} #{request.url}"
   getContextThatUnlocksCacheOnDispose = () ->
     buildContext(request, response).disposer (context, promise) ->
-      log.debug "disposing of request #{context.contextId}"
+      # if we've lost our client, this is how we know and as such there is no 
+      # sense in keeping the cached response around since we'll never serve it to anyone
+      # normally we'd 
+      cache.removeCachedResponseFromContext(context) if context.clientIsDisconnected
+      log.debug "disposing of request %d", context.contextId
       if context.cacheLockDescriptor
-        log.debug "unlocking cache lock #{context.cacheLockDescriptor} during context dispose #{context.contextId}"
+        log.debug "unlocking cache lock %s during context dispose %d", context.cacheLockDescriptor, context.contextId
         cache.promiseToReleaseCacheLock(context.cacheLockDescriptor)
       else
         log.debug "cache not locked, no unlock needed during context dispose"
@@ -249,15 +294,17 @@ server = http.createServer (request, response) ->
     .then setDebugIfAskedFor
     .then determineIfAdminRequest
     .then getTargetConfigForRequest
+    .then stripPathIfRequested
     .then determineIfProxiedOnlyOrCached
     .then handleProxyOnlyRequest
     .then readRequestBody
     .then buildCacheKey
     .then handleAdminRequest
     .then getCachedResponse
-    .then getCacheLockIfNoCachedResponseExists
-    .then getAndCacheResponseIfNeeded
     .then determineIfCacheIsExpired
+    .then dumpCachedResponseIfStaleResponseIsNotAllowed
+    .then getCacheLockIfNoCachedResponseExists
+    .then getAndCacheResponseIfNoneExists
     .then getCacheLockIfCacheIsExpired
     .then serveCachedResponse
     .then triggerRebuildOfExpiredCachedResponse

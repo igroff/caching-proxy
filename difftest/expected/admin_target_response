@@ -1,1 +1,1 @@
-{"route":"/error/invalid_cert","target":"https://www.google.com/","maxAgeInMilliseconds":5000,"regexp":{}}
+{"route":"/error/invalid_cert","target":"https://www.google.com/","maxAgeInMilliseconds":5000,"regexp":{},"sendPathWithProxiedRequest":true,"serveStaleCache":true,"cacheNon200Response":true}

@@ -1,0 +1,14 @@
+[
+  {
+    "route": "/for-testing-absolute-expiration",
+    "target": "http://localhost:8000/now",
+    "dayRelativeExpirationTimeInMilliseconds": {{ABS_EXPIRATION_TIME_IN_MS}},
+    "sendPathWithProxiedRequest": false,
+    "serveStaleCache" : false
+  },
+  {
+    "route": "*",
+    "target": "http://localhost:8000",
+    "maxAgeInMilliseconds": 0
+  }
+]

@@ -1,3 +1,4 @@
 *.swp
 node_modules/
 difftest/results/
+difftest/test-server/show_error

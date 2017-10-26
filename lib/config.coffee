@@ -3,6 +3,7 @@ fs      = Promise.promisifyAll(require('fs'))
 log     = require 'simplog'
 _       = require 'lodash'
 hogan   = require 'hogan.js'
+url     = require 'url'
 
 config =
   listenPort: process.env.PORT || 8080
@@ -19,7 +20,6 @@ if not config.targetConfigPath
   process.exit 1
 log.info "loading target config: #{config.targetConfigPath}"
 targetConfigData = fs.readFileSync(config.targetConfigPath, 'utf8')
-log.info "using target config:\n%s", targetConfigData
 
 
 config.setTargetConfig = (targetConfig) ->
@@ -31,23 +31,50 @@ config.setTargetConfig = (targetConfig) ->
   targetValidator = (target) ->
     throw new Error "target #{JSON.stringify(target)} needs a valid route value" unless target.route
     throw new Error "target #{JSON.stringify(target)} needs a valid target value" unless target.target
-    throw new Error "target #{JSON.stringify(target)} must have a numeric value for maxAgeInMilliseconds" if isNaN(Number(target.maxAgeInMilliseconds))
-    throw new Error "target #{JSON.stringify(target)} needs a valid maxAgeInMilliseconds value" unless target.maxAgeInMilliseconds > -1
+    if target.maxAgeInMilliseconds
+      throw new Error "target #{JSON.stringify(target)} must have a numeric value for maxAgeInMilliseconds" if isNaN(Number(target.maxAgeInMilliseconds))
+      throw new Error "target #{JSON.stringify(target)} has invalid maxAgeInMilliseconds value" unless target.maxAgeInMilliseconds > -1
+    if target.dayRelativeExpirationTimeInMilliseconds
+      throw new Error "target #{JSON.stringify(target)} must have a numeric value for dayRelativeExpirationTimeInMilliseconds" if isNaN(Number(target.dayRelativeExpirationTimeInMilliseconds))
+      throw new Error "target #{JSON.stringify(target)} has invalid dayRelativeExpirationTimeInMilliseconds value"  unless target.dayRelativeExpirationTimeInMilliseconds > -1
 
   targetRegexBuilder = (target) ->
     if target.route is '*'
       target.regexp = new RegExp(/./)
     else
       target.regexp = new RegExp('^' + target.route.replace(/\//g, '\\/'))
+    log.debug "route (#{target.route}) regular expression matcher is #{target.regexp}"
+
+  targetSendPathDefault = (target) ->
+    if target.sendPathWithProxiedRequest is undefined
+      target.sendPathWithProxiedRequest = true
+
+  targetServeStaleCacheDefault = (target) ->
+    if target.serveStaleCache is undefined
+      target.serveStaleCache = true
+  
+  # adding the ability to specify cache behavior for error resopnses, the historical behavior
+  # was to cache since the cache knows nothing at all about what the called service behavior is
+  # this allows the config to change that behavior, and allow for _not_ caching responses 
+  # that are not 200
+  targetCacheNon200Response = (target) ->
+    if target.cacheNon200Response is undefined
+      target.cacheNon200Response = true
 
   throw new Error "target config must be an array of target configuration objects" unless _.isArray targetList
   targetList.forEach(targetValidator)
   targetList.forEach(targetRegexBuilder)
+  targetList.forEach(targetSendPathDefault)
+  targetList.forEach(targetServeStaleCacheDefault)
+  targetList.forEach(targetCacheNon200Response)
   config.targets = targetList
 
 config.findMatchingTarget = (url) ->
   # find the config that matches this request
-  matchedTarget =  _.find(config.targets, (target) -> target.regexp.test(url))
+  matchedTarget =  _.find(config.targets, (target) ->
+    log.debug "testing: #{target.regexp}"
+    target.regexp.test(url)
+  )
   # if there is no matching target, then we'll create a cacheless target for the
   # default target, this means that the default behavior of the proxy is to
   # proxy to the default target with no caching
@@ -65,4 +92,5 @@ config.saveTargetConfig = () ->
   fs.writeFileAsync(config.targetConfigPath, JSON.stringify(targetConfig, null, 2), {flag: 'w+'})
 
 config.setTargetConfig(targetConfigData)
+log.info "using target config:\n%j", config.targets
 module.exports = config
