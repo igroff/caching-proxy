@@ -30,7 +30,6 @@ proxy.on 'proxyRes', (proxyRes, request, res) ->
     # cache responses with a status of 200
     shouldICacheIt = request.targetConfig.cacheNon200Response or proxyRes.statusCode is 200
     if shouldICacheIt
-      console.log "status: ", proxyRes.statusCode
       log.debug "proxy response received for key: %s contextid: %s url: %s previous cache: %s, disposed: %s", request.cacheKey, request.contextId, request.url, request.cachedResponse, request.cachedResponse?.isDisposed
       cache.cacheResponse(request.cacheKey, proxyRes)
     else
