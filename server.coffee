@@ -246,7 +246,7 @@ serveCachedResponse = (context) ->
   context.response.writeHead cachedResponse.statusCode, cachedResponse.headers
   cachedResponse.body.pipe(context.response)
   context.contextEvents.once 'responsefinish', () ->
-    log.info "%s cached response served in %d ms", context.request.url, serveDuration
+    log.debug "%s cached response served in %d ms", context.request.url, serveDuration
   return context
 
 triggerRebuildOfExpiredCachedResponse = (context) ->
