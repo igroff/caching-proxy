@@ -279,13 +279,13 @@ server = http.createServer (request, response) ->
       # if we've lost our client, this is how we know and as such there is no 
       # sense in keeping the cached response around since we'll never serve it to anyone
       # normally we'd 
-      cache.removeCachedResponseFromContext(context) if context.clientIsDisconnected
       log.debug "disposing of request %d", context.contextId
       if context.cacheLockDescriptor
         log.debug "unlocking cache lock %s during context dispose %d", context.cacheLockDescriptor, context.contextId
         cache.promiseToReleaseCacheLock(context.cacheLockDescriptor)
       else
         log.debug "cache not locked, no unlock needed during context dispose"
+      cache.removeCachedResponseFromContext(context) if context.clientIsDisconnected
 
   requestPipeline = (context) ->
     Promise.resolve(context)
