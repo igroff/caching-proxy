@@ -68,7 +68,7 @@ removeCachedResponseFromContext = (context) ->
   return unless context.cachedResponse
   context.contextEvents.removeListener 'clientdisconnect', context.cachedResponse.dispose
   context.contextEvents.removeListener 'responsefinish', context.cachedResponse.dispose
-  context.cachedResponse.dispose()
+  context.cachedResponse?.dispose()
   context.cachedResponse = undefined
 
 getCacheFilePath = (requestInfo) ->
