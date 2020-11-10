@@ -1,12 +1,12 @@
 #! /usr/bin/env bash
-
 # cache the response, and calculate the path to the cache file
 CACHE_PATH=$(curl -v http://localhost:8080/howdy.html 2>&1 | grep x-cache-key | sed -e 's[< x-cache-key: [[g' | xargs -n 1 -I {} echo -n ${TMPDIR}{} | sed -e 's/[[:space:]]//g')
 
-# make sure it's gone
+# make sure the cache exists
 if [ -f "${CACHE_PATH}" ]; then
-  printf "before cache clear the file %s exists as expected" "${CACHE_PATH}"
+  printf "before cache clear the file exists as expected"
 else
+  printf "before clearing the cache the file DOEST NOT exist as expected"
   exit 1
 fi
 
@@ -15,11 +15,9 @@ echo ""
 curl -s http://localhost:8080/____/delete/howdy.html
 echo ""
 
-echo ${CACHE_PATH}
-
 # make sure it's gone
 if [ -f "${CACHE_PATH}" ]; then
-  printf "o no, the file %s should not exist" "${CACHE_PATH}"
+  printf "o no, the cache file should not exist\n"
 else
-  printf "the cache file %s does not exist as expected" "${CACHE_PATH}"
+  printf "the cache file %s does not exist as expected\n"
 fi
