@@ -22,7 +22,7 @@ build_output/: node_modules/
 	mkdir -p build_output
 
 run-server: build_output/
-	exec bash -c "export APP_NAME=${APP_NAME}; test -r ~/.${APP_NAME}.env && . ~/.${APP_NAME}.env ; exec ./node_modules/.bin/coffee server.coffee"
+	exec bash -c "export APP_NAME=${APP_NAME}; . $(PWD)/difftest/etc/${APP_NAME}.env ; exec ./node_modules/.bin/coffee server.coffee"
 
 clean:
 	rm -rf ./node_modules/

@@ -1,2 +1,2 @@
 < HTTP/1.1 500 Internal Server Error
-{"status": "error", "message": "getaddrinfo ENOTFOUND this.is.an.invalid.dns.name.fauxr.us this.is.an.invalid.dns.name.fauxr.us:80"}
+{"status": "error", "message": "getaddrinfo ENOTFOUND this.is.an.invalid.dns.name.fauxr.us"}* Closing connection 0
