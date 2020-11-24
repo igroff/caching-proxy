@@ -6,6 +6,12 @@ log           = require 'simplog'
 EventEmitter  = require 'events'
 _             = require 'lodash'
 ReadWriteLock = require 'rwlock'
+{ Readable } = require("stream")
+{ promisify } = require("util");
+redis = require("redis");
+client = redis.createClient();
+getItemFromCache = promisify(client.get).bind(client);
+putItemInCache = promisify(client.set).bind(client);
 
 config  = require './config.coffee'
 readWriteLock = new ReadWriteLock()
@@ -20,7 +26,31 @@ lockMap = {}
 # can see
 cacheEventEmitter.setMaxListeners(1000)
 
-tryGetCachedResponse = (cacheKey) ->
+tryGetCachedResponseFromRedis = (cacheKey) ->
+  new Promise (resolve, reject) ->
+    console.log "fuckballs!"
+    log.debug "tryGetCachedResponse(#{cacheKey})"
+    [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
+    getItemFromCache(cacheFilePath)
+    .then( (cachedValue) ->
+      if (cachedValue) 
+        log.debug "serialized cached response is (#{cachedValue})"
+        cachedResponse = JSON.parse(cachedValue)
+        log.debug "de-serialized cached response is (#{cachedResponse})"
+        cachedResponse.dispose = () ->
+        cachedResponse.body = Readable.from([cachedResponse.body])
+        resolve(cachedResponse)
+      else
+        return resolve(undefined);
+    )
+    .catch((e) -> 
+      # if we have a problem reading the cache, we just return nothing
+      # because... we couldn't read anything
+      log.debug "error fetching cache item #{cacheFilePath} #{e.message}"
+      resolve undefined
+    )
+
+tryGetCachedResponseFromFile = (cacheKey) ->
   new Promise (resolve, reject) ->
     log.debug "tryGetCachedResponse(#{cacheKey})"
     [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
@@ -59,6 +89,7 @@ tryGetCachedResponse = (cacheKey) ->
 
 addCachedResponseToContext = (context, cachedResponse) ->
   return unless cachedResponse
+  log.debug "adding cached response #{cachedResponse} to context"
   context.cachedResponse?.dispose()
   context.contextEvents.on 'clientdisconnect', cachedResponse.dispose
   context.contextEvents.on 'responsefinish', cachedResponse.dispose
@@ -88,7 +119,43 @@ deleteCacheEntry = (cacheKey) ->
       throw e
   )
 
-cacheResponse = (cacheKey, response) ->
+cacheResponseToRedis = (cacheKey, response) ->
+  new Promise (resolve, reject) ->
+    [cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath] = getCacheFilePath cacheKey
+    cachedResponse = {
+      statusCode: response.statusCode
+      statusMessage: response.statusMessage
+      headers: response.headers
+      createTime: Date.now()
+    }    
+    body = [];
+    response.on('err', reject)
+    response.on('data', (chunk) -> body.push(chunk) )
+    response.on('end', () ->
+      cachedResponse.body = Buffer.concat(body).toString();
+      acquireWriteLock = () ->
+        promise = new Promise (resolve, reject) ->
+          readWriteLock.writeLock(cacheKey, (release) -> resolve(release))
+        promise.disposer (release, promise) -> release()
+      # we have the whole body, now we just need to store things and emit the appropriate events
+      using(acquireWriteLock(), () ->
+        log.debug "caching response for #{cacheFilePath}"
+        log.debug "response to be cached is: #{JSON.stringify cachedResponse}"
+        putItemInCache(cacheFilePath, JSON.stringify(cachedResponse))
+        .then( () -> console.log("anus"))
+        .then( () -> cacheEventEmitter.emit("#{cacheKey}"))
+        .then( () -> log.debug "response for #{cacheKey} has been written to cache")
+        .then( () -> resolve )
+        .catch((e) ->
+          log.error "error caching response keyed (#{cacheKey}), #{e}"
+          cacheEventEmitter.emit("#{cacheKey}", e);
+          reject(e);
+        )
+      );
+    );
+
+
+cacheResponseToFile = (cacheKey, response) ->
   new Promise (resolve, reject) ->
     [cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath] = getCacheFilePath cacheKey
     log.debug "caching response metadata to #{cacheFilePath}, and body to #{cacheBodyFilePath}"
@@ -143,8 +210,8 @@ promiseToReleaseCacheLock = (lockDescriptor) ->
     delete lockMap[lockDescriptor]
     resolve()
 
-module.exports.tryGetCachedResponse = tryGetCachedResponse
-module.exports.cacheResponse = cacheResponse
+module.exports.tryGetCachedResponse = tryGetCachedResponseFromRedis
+module.exports.cacheResponse = cacheResponseToRedis
 module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
 module.exports.deleteCacheEntry = deleteCacheEntry

@@ -259,10 +259,13 @@ triggerRebuildOfExpiredCachedResponse = (context) ->
       handleProxyError = (e) ->
         log.error "error proxying cache rebuild request to %s\n%s", context.targetConfig.target, e
         reject(e)
+      console.log("here");
       # while we don't actually need to wait for this response to be cached ( for the requestor ) because a
       # cached resopnse will have already been served, we do need to keep our pipeline going as expected
       # because we have a 'disposable' context that we use to manage this whole flow
       cache.events.once context.cacheKey, () -> resolve(context)
+      console.log("there #{context}")
+      proxy.on 'error', () -> console.log("error from proxy")
       return proxy.web(context, fauxProxyResponse, { target: context.targetConfig.target, headers: context.targetConfig.headers}, handleProxyError)
     resolve(context)
 
@@ -306,8 +309,11 @@ server = http.createServer (request, response) ->
     .then getAndCacheResponseIfNoneExists
     .then getCacheLockIfCacheIsExpired
     .then serveCachedResponse
+    .tap () -> console.log "sandwich"
     .then triggerRebuildOfExpiredCachedResponse
+    .tap () -> console.log "sandwich2"
     .then resetDebugIfAskedFor
+    .tap () -> console.log "sandwich3"
     .tap -> log.debug("request handling complete")
     .catch RequestHandlingComplete, (e) ->
       log.debug "request handling completed in catch"

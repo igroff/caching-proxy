@@ -1,2 +1,2 @@
 < HTTP/1.1 500 Internal Server Error
-{"status": "error", "message": "Hostname/IP does not match certificate's altnames: Host: localhost. is not in the cert's altnames: DNS:www.google.com"}* Closing connection 0
+{"status": "error", "message": "Hostname/IP does not match certificate's altnames: Host: localhost. is not in the cert's altnames: DNS:www.google.com"}
