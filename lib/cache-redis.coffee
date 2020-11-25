@@ -13,7 +13,7 @@ config  = require './config.coffee'
 client = redis.createClient()
 getItemFromCache = promisify(client.get).bind(client);
 putItemInCache = promisify(client.set).bind(client);
-deleteCacheEntry = promisify(client.del).bind(client);
+deleteItemInCache = promisify(client.del).bind(client);
 
 readWriteLock = new ReadWriteLock()
 
@@ -27,21 +27,21 @@ lockMap = {}
 # can see
 cacheEventEmitter.setMaxListeners(1000)
 
-getCacheEntryFromRedis = (cacheKey) ->
+getCacheEntry = (cacheKey) ->
   new Promise (resolve, reject) ->
     getItemFromCache(cacheKey)
     .then( (cachedValue) -> resolve(cachedValue) )
     .catch( () -> resolve(undefined))
 
-deleteCacheEntryFromRedis = (cacheKey) ->
+deleteCacheEntry = (cacheKey) ->
   log.debug "deleting cache entry #{cacheKey}"
-  deleteCacheEntry(cacheKey)
+  deleteItemInCache(cacheKey)
   .catch( (e) ->
     if e.message.indexOf("ENOENT") is -1
       throw e
   )
 
-cacheResponseToRedis = (cacheKey, response) ->
+cacheResponse = (cacheKey, response) ->
   new Promise (resolve, reject) ->
     cachedResponse = {
       statusCode: response.statusCode
@@ -73,7 +73,7 @@ cacheResponseToRedis = (cacheKey, response) ->
       );
     );
 
-tryGetCachedResponseFromRedis = (cacheKey) ->
+tryGetCachedResponse = (cacheKey) ->
   new Promise (resolve, reject) ->
     log.debug "tryGetCachedResponse(#{cacheKey})"
     getItemFromCache(cacheKey)
@@ -119,11 +119,10 @@ promiseToReleaseCacheLock = (lockDescriptor) ->
     delete lockMap[lockDescriptor]
     resolve()
 
-module.exports.tryGetCachedResponse = tryGetCachedResponseFromRedis
-module.exports.cacheResponse = cacheResponseToRedis
-module.exports.getCacheEntry = getCacheEntryFromRedis
-module.exports.deleteCacheEntry = deleteCacheEntryFromRedis
-
+module.exports.tryGetCachedResponse = tryGetCachedResponse
+module.exports.cacheResponse = cacheResponse
+module.exports.getCacheEntry = getCacheEntry
+module.exports.deleteCacheEntry = deleteCacheEntry
 module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
 module.exports.events = cacheEventEmitter
