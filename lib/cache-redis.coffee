@@ -10,7 +10,7 @@ redis         = require("redis");
 
 
 config  = require './config.coffee'
-client = redis.createClient()
+client = redis.createClient(config.redisConfig)
 getItemFromCache = promisify(client.get).bind(client);
 putItemInCache = promisify(client.set).bind(client);
 deleteItemInCache = promisify(client.del).bind(client);
