@@ -26,17 +26,21 @@ lockMap = {}
 # can see
 cacheEventEmitter.setMaxListeners(1000)
 
+getCacheEntry = (cacheKey) ->
+  new Promise (resolve, reject) ->
+    [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
+    getItemFromCache(cacheFilePath)
+    .then( (cachedValue) -> resolve(cachedValue) )
+    .catch( () -> resolve(undefined))
+
 tryGetCachedResponseFromRedis = (cacheKey) ->
   new Promise (resolve, reject) ->
-    console.log "fuckballs!"
     log.debug "tryGetCachedResponse(#{cacheKey})"
     [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
     getItemFromCache(cacheFilePath)
     .then( (cachedValue) ->
       if (cachedValue) 
-        log.debug "serialized cached response is (#{cachedValue})"
         cachedResponse = JSON.parse(cachedValue)
-        log.debug "de-serialized cached response is (#{cachedResponse})"
         cachedResponse.dispose = () ->
         cachedResponse.body = Readable.from([cachedResponse.body])
         resolve(cachedResponse)
@@ -140,11 +144,9 @@ cacheResponseToRedis = (cacheKey, response) ->
       # we have the whole body, now we just need to store things and emit the appropriate events
       using(acquireWriteLock(), () ->
         log.debug "caching response for #{cacheFilePath}"
-        log.debug "response to be cached is: #{JSON.stringify cachedResponse}"
         putItemInCache(cacheFilePath, JSON.stringify(cachedResponse))
-        .then( () -> console.log("anus"))
         .then( () -> cacheEventEmitter.emit("#{cacheKey}"))
-        .then( () -> log.debug "response for #{cacheKey} has been written to cache")
+        .then( () -> log.debug "response (#{JSON.stringify cachedResponse}) for #{cacheKey} has been written to cache")
         .then( () -> resolve )
         .catch((e) ->
           log.error "error caching response keyed (#{cacheKey}), #{e}"
@@ -212,6 +214,7 @@ promiseToReleaseCacheLock = (lockDescriptor) ->
 
 module.exports.tryGetCachedResponse = tryGetCachedResponseFromRedis
 module.exports.cacheResponse = cacheResponseToRedis
+module.exports.getCacheEntry = getCacheEntry
 module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
 module.exports.deleteCacheEntry = deleteCacheEntry

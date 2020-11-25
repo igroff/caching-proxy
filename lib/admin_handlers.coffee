@@ -10,6 +10,9 @@ handleAdminRequest = (context) ->
   log.debug "handling admin request url #{context.url}, command: #{command}"
   if command is 'delete'
     handleDeleteRequest(context.cacheKey, response)
+  else if command is "get"
+    cache.getCacheEntry(context.cacheKey)
+    .then( (cachedEntry) -> response.end(cachedEntry) )
   else if command is "config"
     # just handing back the current config for whatever reason the caller
     # may have need of seeing it
