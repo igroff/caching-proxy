@@ -9,7 +9,7 @@ crypto        = require 'crypto'
 mocks         = require 'node-mocks-http'
 
 config        = require './lib/config.coffee'
-cache         = require './lib/cache.coffee'
+cache         = require './lib/cache-redis.coffee'
 admin         = require './lib/admin_handlers.coffee'
 buildContext  = require './lib/context.coffee'
  

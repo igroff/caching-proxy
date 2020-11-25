@@ -1,6 +1,6 @@
 log       = require 'simplog'
 config    = require './config.coffee'
-cache     = require './cache.coffee'
+cache     = require './cache-redis.coffee'
 
 stringify = JSON.stringify
 
