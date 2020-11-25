@@ -3,8 +3,10 @@
 CACHE_PATH=$(curl -v http://localhost:8080/howdy.html 2>&1 | grep x-cache-key | sed -e 's[< x-cache-key: [[g' | xargs -n 1 -I {} echo -n ${TMPDIR}{} | sed -e 's/[[:space:]]//g')
 
 # make sure the cache exists
-if [ -f "${CACHE_PATH}" ]; then
-  printf "before cache clear the file exists as expected"
+CACHE_CONTENTS=$(curl -s http://localhost:8080/____/get/howdy.html)
+# CACHE_CONTENTS should be a non empty string, since we expect the cache to be populated
+if [ -n "${CACHE_CONTENTS}" ]; then
+  printf "before cache clear the cache exists as expected"
 else
   printf "before clearing the cache the file DOEST NOT exist as expected"
   exit 1
@@ -15,9 +17,11 @@ echo ""
 curl -s http://localhost:8080/____/delete/howdy.html
 echo ""
 
-# make sure it's gone
-if [ -f "${CACHE_PATH}" ]; then
-  printf "o no, the cache file should not exist\n"
+CACHE_CONTENTS=$(curl -s http://localhost:8080/____/get/howdy.html)
+# make sure it's gone, CACHE_CONTENTS should now be an EMPTY string because we expect the cache
+# to have been cleared
+if [ -z "${CACHE_CONTENTS}" ]; then
+  printf "the cache does not exist as expected\n"
 else
-  printf "the cache file %s does not exist as expected\n"
+  printf "o no, the cache should not exist\n"
 fi

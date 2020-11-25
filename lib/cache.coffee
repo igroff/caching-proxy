@@ -12,6 +12,7 @@ redis = require("redis");
 client = redis.createClient();
 getItemFromCache = promisify(client.get).bind(client);
 putItemInCache = promisify(client.set).bind(client);
+deleteCacheEntry = promisify(client.del).bind(client);
 
 config  = require './config.coffee'
 readWriteLock = new ReadWriteLock()
@@ -32,6 +33,15 @@ getCacheEntry = (cacheKey) ->
     getItemFromCache(cacheFilePath)
     .then( (cachedValue) -> resolve(cachedValue) )
     .catch( () -> resolve(undefined))
+
+deleteCacheEntryFromRedis = (cacheKey) ->
+  [cacheFilePath] = getCacheFilePath cacheKey
+  log.debug "deleting cache file #{cacheFilePath}"
+  deleteCacheEntry(cacheFilePath)
+  .catch( (e) ->
+    if e.message.indexOf("ENOENT") is -1
+      throw e
+  )
 
 tryGetCachedResponseFromRedis = (cacheKey) ->
   new Promise (resolve, reject) ->
@@ -112,7 +122,7 @@ getCacheFilePath = (requestInfo) ->
   cacheFileTempPath = path.join(config.tempDir, "#{requestInfo}.#{uniqueIdentifier}")
   return [cacheFilePath, "#{cacheFilePath}.body", cacheFileTempPath, "#{cacheFileTempPath}.body"]
 
-deleteCacheEntry = (cacheKey) ->
+deleteCacheEntryFromFile = (cacheKey) ->
   [cacheFilePath] = getCacheFilePath cacheKey
   log.debug "deleting cache file #{cacheFilePath}"
   fs.unlinkAsync(cacheFilePath)
@@ -217,7 +227,7 @@ module.exports.cacheResponse = cacheResponseToRedis
 module.exports.getCacheEntry = getCacheEntry
 module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
-module.exports.deleteCacheEntry = deleteCacheEntry
+module.exports.deleteCacheEntry = deleteCacheEntryFromRedis
 module.exports.events = cacheEventEmitter
 module.exports.addCachedResponseToContext = addCachedResponseToContext
 module.exports.removeCachedResponseFromContext = removeCachedResponseFromContext

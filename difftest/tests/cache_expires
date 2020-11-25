@@ -1,14 +1,19 @@
 #! /usr/bin/env bash
 # vi: ft=sh
+# make sure we're clear
+curl -s http://localhost:8080/____/delete/now-fast
+echo ""
 # ok, so here's the deal
-# we have this target configured with a cache interval that is long enough that the first hit should
-# get cached while the second hit will be served the cache but immediately cause a rebuild THUS
-# the third and final request should get a new value so we validate that we both get a cached response
-# and an uncached resopnse as soon as it expires
+# first request will cause the response to be cached, as there will be no cached response available
 FIRST_REQUEST=$(curl -s http://localhost:8080/now-fast)
-sleep .5
+# then we wait until our cach is expired and hit it again, and since the expiration time has 
+# elapsed (it is 2 seconds) and we're set to serve stale cache, we should get the cached response
+# but trigger a background rebuild
+sleep 2.5
 SECOND_REQUEST=$(curl -s http://localhost:8080/now-fast)
-sleep 1
+# now we wait again to make sure our rebuild is complete and with this final request we should
+# get a new value
+sleep 2
 THIRD_REQUEST=$(curl -s http://localhost:8080/now-fast)
 
 if [ $FIRST_REQUEST -eq $SECOND_REQUEST ]; then

@@ -1,3 +1,3 @@
-before cache clear the file exists as expected
+before cache clear the cache exists as expected
 {"status":"ok","message":"cache entry removed"}
-the cache file  does not exist as expected
+the cache does not exist as expected

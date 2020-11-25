@@ -165,6 +165,7 @@ determineIfCacheIsExpired = (context) ->
   return context
 
 dumpCachedResponseIfStaleResponseIsNotAllowed = (context) ->
+  log.debug "dumpCachedResponseIfStaleResponseIsNotAllowed"
   # here's the deal, if we want a cached response to NEVER be served IF stale, the target config
   # will be configued with a falsey serveStaleCache, so in that case we'll just flat dump any
   # cached response we may have IF it is expired. We do it here before we get the cache lock
@@ -309,11 +310,8 @@ server = http.createServer (request, response) ->
     .then getAndCacheResponseIfNoneExists
     .then getCacheLockIfCacheIsExpired
     .then serveCachedResponse
-    .tap () -> console.log "sandwich"
     .then triggerRebuildOfExpiredCachedResponse
-    .tap () -> console.log "sandwich2"
     .then resetDebugIfAskedFor
-    .tap () -> console.log "sandwich3"
     .tap -> log.debug("request handling complete")
     .catch RequestHandlingComplete, (e) ->
       log.debug "request handling completed in catch"
