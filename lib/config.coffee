@@ -14,6 +14,7 @@ config =
   targetConfigPath : process.env.TARGET_CONFIG_PATH
   # this is used to configure the HTTP server timeout, and is actually a reflection of the default value
   requestTimeout : process.env.REQUEST_TIMEOUT || 120
+  redisConfig: process.env.REDIS_CONFIG || {}
 
 if not config.targetConfigPath
   log.error "unable to start with no config specified, provide a TARGET_CONFIG_PATH"

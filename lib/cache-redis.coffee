@@ -4,15 +4,17 @@ log           = require 'simplog'
 EventEmitter  = require 'events'
 _             = require 'lodash'
 ReadWriteLock = require 'rwlock'
-{ Readable } = require("stream")
+redis         = require("redis");
+{ Readable }  = require("stream")
 { promisify } = require("util");
-redis = require("redis");
-client = redis.createClient();
+
+
+config  = require './config.coffee'
+client = redis.createClient()
 getItemFromCache = promisify(client.get).bind(client);
 putItemInCache = promisify(client.set).bind(client);
 deleteCacheEntry = promisify(client.del).bind(client);
 
-config  = require './config.coffee'
 readWriteLock = new ReadWriteLock()
 
 # just a counter to help us create unique file names
