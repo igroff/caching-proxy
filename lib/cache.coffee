@@ -27,27 +27,56 @@ lockMap = {}
 # can see
 cacheEventEmitter.setMaxListeners(1000)
 
-getCacheEntry = (cacheKey) ->
+getCacheEntryFromRedis = (cacheKey) ->
   new Promise (resolve, reject) ->
-    [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
-    getItemFromCache(cacheFilePath)
+    getItemFromCache(cacheKey)
     .then( (cachedValue) -> resolve(cachedValue) )
     .catch( () -> resolve(undefined))
 
 deleteCacheEntryFromRedis = (cacheKey) ->
-  [cacheFilePath] = getCacheFilePath cacheKey
-  log.debug "deleting cache file #{cacheFilePath}"
-  deleteCacheEntry(cacheFilePath)
+  log.debug "deleting cache entry #{cacheKey}"
+  deleteCacheEntry(cacheKey)
   .catch( (e) ->
     if e.message.indexOf("ENOENT") is -1
       throw e
   )
 
+cacheResponseToRedis = (cacheKey, response) ->
+  new Promise (resolve, reject) ->
+    cachedResponse = {
+      statusCode: response.statusCode
+      statusMessage: response.statusMessage
+      headers: response.headers
+      createTime: Date.now()
+    }
+    body = [];
+    response.on('err', reject)
+    response.on('data', (chunk) -> body.push(chunk) )
+    response.on('end', () ->
+      cachedResponse.body = Buffer.concat(body).toString();
+      acquireWriteLock = () ->
+        promise = new Promise (resolve, reject) ->
+          readWriteLock.writeLock(cacheKey, (release) -> resolve(release))
+        promise.disposer (release, promise) -> release()
+      # we have the whole body, now we just need to store things and emit the appropriate events
+      using(acquireWriteLock(), () ->
+        log.debug "caching response for #{cacheKey}"
+        putItemInCache(cacheKey, JSON.stringify(cachedResponse))
+        .then( () -> cacheEventEmitter.emit("#{cacheKey}"))
+        .then( () -> log.debug "response (#{JSON.stringify cachedResponse}) for #{cacheKey} has been written to cache")
+        .then( () -> resolve )
+        .catch((e) ->
+          log.error "error caching response keyed (#{cacheKey}), #{e}"
+          cacheEventEmitter.emit("#{cacheKey}", e);
+          reject(e);
+        )
+      );
+    );
+
 tryGetCachedResponseFromRedis = (cacheKey) ->
   new Promise (resolve, reject) ->
     log.debug "tryGetCachedResponse(#{cacheKey})"
-    [cacheFilePath, cacheBodyFilePath] = getCacheFilePath cacheKey
-    getItemFromCache(cacheFilePath)
+    getItemFromCache(cacheKey)
     .then( (cachedValue) ->
       if (cachedValue) 
         cachedResponse = JSON.parse(cachedValue)
@@ -60,9 +89,43 @@ tryGetCachedResponseFromRedis = (cacheKey) ->
     .catch((e) -> 
       # if we have a problem reading the cache, we just return nothing
       # because... we couldn't read anything
-      log.debug "error fetching cache item #{cacheFilePath} #{e.message}"
+      log.debug "error fetching cache item #{cacheKey} #{e.message}"
       resolve undefined
     )
+
+
+addCachedResponseToContext = (context, cachedResponse) ->
+  return unless cachedResponse
+  log.debug "adding cached response #{cachedResponse} to context"
+  context.cachedResponse?.dispose()
+  context.contextEvents.on 'clientdisconnect', cachedResponse.dispose
+  context.contextEvents.on 'responsefinish', cachedResponse.dispose
+  context.cachedResponse = cachedResponse
+
+removeCachedResponseFromContext = (context) ->
+  return unless context.cachedResponse
+  context.contextEvents.removeListener 'clientdisconnect', context.cachedResponse.dispose
+  context.contextEvents.removeListener 'responsefinish', context.cachedResponse.dispose
+  context.cachedResponse.dispose()
+  context.cachedResponse = undefined
+
+getCacheFilePath = (requestInfo) ->
+  uniqueIdentifier = "#{process.pid}.#{new Date().getTime()}.#{++tempCounter}"
+  cacheFilePath = path.join(config.cacheDir, requestInfo)
+  cacheFileTempPath = path.join(config.tempDir, "#{requestInfo}.#{uniqueIdentifier}")
+  return [cacheFilePath, "#{cacheFilePath}.body", cacheFileTempPath, "#{cacheFileTempPath}.body"]
+
+deleteCacheEntryFromFile = (cacheKey) ->
+  [cacheFilePath] = getCacheFilePath cacheKey
+  log.debug "deleting cache file #{cacheFilePath}"
+  fs.unlinkAsync(cacheFilePath)
+  .catch( (e) ->
+    # it's cool if we get asked to delete a chache entry that isn't there but if we get
+    # anything else, we want it to bubble up
+    if e.message.indexOf("ENOENT") is -1
+      throw e
+  )
+
 
 tryGetCachedResponseFromFile = (cacheKey) ->
   new Promise (resolve, reject) ->
@@ -100,72 +163,6 @@ tryGetCachedResponseFromFile = (cacheKey) ->
       # because... we couldn't read anything
       log.debug "error opening cache file #{cacheFilePath} #{e.message}"
       resolve undefined
-
-addCachedResponseToContext = (context, cachedResponse) ->
-  return unless cachedResponse
-  log.debug "adding cached response #{cachedResponse} to context"
-  context.cachedResponse?.dispose()
-  context.contextEvents.on 'clientdisconnect', cachedResponse.dispose
-  context.contextEvents.on 'responsefinish', cachedResponse.dispose
-  context.cachedResponse = cachedResponse
-
-removeCachedResponseFromContext = (context) ->
-  return unless context.cachedResponse
-  context.contextEvents.removeListener 'clientdisconnect', context.cachedResponse.dispose
-  context.contextEvents.removeListener 'responsefinish', context.cachedResponse.dispose
-  context.cachedResponse.dispose()
-  context.cachedResponse = undefined
-
-getCacheFilePath = (requestInfo) ->
-  uniqueIdentifier = "#{process.pid}.#{new Date().getTime()}.#{++tempCounter}"
-  cacheFilePath = path.join(config.cacheDir, requestInfo)
-  cacheFileTempPath = path.join(config.tempDir, "#{requestInfo}.#{uniqueIdentifier}")
-  return [cacheFilePath, "#{cacheFilePath}.body", cacheFileTempPath, "#{cacheFileTempPath}.body"]
-
-deleteCacheEntryFromFile = (cacheKey) ->
-  [cacheFilePath] = getCacheFilePath cacheKey
-  log.debug "deleting cache file #{cacheFilePath}"
-  fs.unlinkAsync(cacheFilePath)
-  .catch( (e) ->
-    # it's cool if we get asked to delete a chache entry that isn't there but if we get
-    # anything else, we want it to bubble up
-    if e.message.indexOf("ENOENT") is -1
-      throw e
-  )
-
-cacheResponseToRedis = (cacheKey, response) ->
-  new Promise (resolve, reject) ->
-    [cacheFilePath, cacheBodyFilePath, cacheFileTempPath, cacheBodyFileTempPath] = getCacheFilePath cacheKey
-    cachedResponse = {
-      statusCode: response.statusCode
-      statusMessage: response.statusMessage
-      headers: response.headers
-      createTime: Date.now()
-    }    
-    body = [];
-    response.on('err', reject)
-    response.on('data', (chunk) -> body.push(chunk) )
-    response.on('end', () ->
-      cachedResponse.body = Buffer.concat(body).toString();
-      acquireWriteLock = () ->
-        promise = new Promise (resolve, reject) ->
-          readWriteLock.writeLock(cacheKey, (release) -> resolve(release))
-        promise.disposer (release, promise) -> release()
-      # we have the whole body, now we just need to store things and emit the appropriate events
-      using(acquireWriteLock(), () ->
-        log.debug "caching response for #{cacheFilePath}"
-        putItemInCache(cacheFilePath, JSON.stringify(cachedResponse))
-        .then( () -> cacheEventEmitter.emit("#{cacheKey}"))
-        .then( () -> log.debug "response (#{JSON.stringify cachedResponse}) for #{cacheKey} has been written to cache")
-        .then( () -> resolve )
-        .catch((e) ->
-          log.error "error caching response keyed (#{cacheKey}), #{e}"
-          cacheEventEmitter.emit("#{cacheKey}", e);
-          reject(e);
-        )
-      );
-    );
-
 
 cacheResponseToFile = (cacheKey, response) ->
   new Promise (resolve, reject) ->
@@ -224,10 +221,11 @@ promiseToReleaseCacheLock = (lockDescriptor) ->
 
 module.exports.tryGetCachedResponse = tryGetCachedResponseFromRedis
 module.exports.cacheResponse = cacheResponseToRedis
-module.exports.getCacheEntry = getCacheEntry
+module.exports.getCacheEntry = getCacheEntryFromRedis
+module.exports.deleteCacheEntry = deleteCacheEntryFromRedis
+
 module.exports.promiseToGetCacheLock = promiseToGetCacheLock
 module.exports.promiseToReleaseCacheLock = promiseToReleaseCacheLock
-module.exports.deleteCacheEntry = deleteCacheEntryFromRedis
 module.exports.events = cacheEventEmitter
 module.exports.addCachedResponseToContext = addCachedResponseToContext
 module.exports.removeCachedResponseFromContext = removeCachedResponseFromContext
