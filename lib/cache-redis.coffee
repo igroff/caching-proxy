@@ -30,16 +30,15 @@ cacheEventEmitter.setMaxListeners(1000)
 getCacheEntry = (cacheKey) ->
   new Promise (resolve, reject) ->
     getItemFromCache(cacheKey)
-    .then( (cachedValue) -> resolve(cachedValue) )
-    .catch( () -> resolve(undefined))
+      .then( (cachedValue) -> resolve(cachedValue) )
+      .catch( () -> resolve(undefined))
 
 deleteCacheEntry = (cacheKey) ->
-  log.debug "deleting cache entry #{cacheKey}"
-  deleteItemInCache(cacheKey)
-  .catch( (e) ->
-    if e.message.indexOf("ENOENT") is -1
-      throw e
-  )
+  new Promise (resolve, reject) ->
+    log.debug "deleting cache entry #{cacheKey}"
+    deleteItemInCache(cacheKey)
+      .then( () -> resolve() )
+      .catch( (e) -> reject(e) )
 
 cacheResponse = (cacheKey, response) ->
   new Promise (resolve, reject) ->
