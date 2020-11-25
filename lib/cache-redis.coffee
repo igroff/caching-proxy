@@ -1,3 +1,9 @@
+# This module implements a redis backed cache and is an interface compatible
+# impelementation designed to simply drop in and replace the existing file backed
+# cache. Because of the compatability there are some things such as locks and
+# streaming body data that are simply around for compatability and are not necessarily
+# required given this implementation.
+
 Promise       = require 'bluebird'
 using         = Promise.using
 log           = require 'simplog'
